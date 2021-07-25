@@ -25,11 +25,11 @@ namespace kai {
     }
 
     constexpr Uint64 mebibytes(Uint64 value) {
-        return value * 1024ull * kibibytes(1);
+        return kibibytes(value) * 1024ull;
     }
 
     constexpr Uint64 gibibytes(Uint64 value) {
-        return value * 1024ull * mebibytes(1);
+        return mebibytes(value) * 1024ull;
     }
 
     KAI_FORCEINLINE bool is_pow2(Uint64 value) {
