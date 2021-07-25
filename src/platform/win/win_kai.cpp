@@ -7,7 +7,8 @@
 #include <windows.h>
 #include <stdlib.h>
 
-#include "../../core/includes/kai.h"
+#include "../../core/kai.cpp"
+#include "../platform.h"
 
 // NOTE: Temporary
 #define DEFAULT_WINDOW_WIDTH 1024
@@ -73,6 +74,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
 
     WIN_CHECK_ERROR(window, L"Could not create window!\n");
 
+    init_engine();
+
     MSG message;
     for(;;) {
         while(PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
@@ -86,7 +89,29 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     }
 
 exit_engine:
+    destroy_engine();
     DestroyWindow(window);
 
     return 0;
+}
+
+void * platform_alloc_mem_arena(size_t bytes, void *address) {
+#ifndef KAI_DEBUG
+    KAI_IGNORED_VARIABLE(address);
+#endif
+
+    return VirtualAlloc(address, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+}
+
+void platform_free_mem_arena(void *arena) {
+    if(arena) {
+        VirtualFree(arena, 0, MEM_RELEASE);
+    }
+}
+
+size_t platform_get_page_size(void) {
+    SYSTEM_INFO sys;
+    GetSystemInfo(&sys);
+
+    return (size_t)sys.dwPageSize;
 }

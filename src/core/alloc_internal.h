@@ -3,10 +3,10 @@
  * See LICENSE for details
  **************************************************/
 
-#ifndef KAI_ENGINE_H
-#define KAI_ENGINE_H
+#ifndef KAI_ALLOC_INTERNAL_H
+#define KAI_ALLOC_INTERNAL_H
 
-#include "types.h"
-#include "utils.h"
+void init_memory_manager(size_t size);
+void destory_memory_manager(void);
 
-#endif /* KAI_ENGINE_H */
+#endif /* KAI_ALLOC_INTERNAL_H */
