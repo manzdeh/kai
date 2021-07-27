@@ -9,9 +9,9 @@
 #include "alloc.cpp"
 
 void init_engine(void) {
-    init_memory_manager(kai::gibibytes(4));
+    MemoryManager::init(kai::gibibytes(4));
 }
 
 void destroy_engine(void) {
-    destroy_memory_manager();
+    MemoryManager::destroy();
 }

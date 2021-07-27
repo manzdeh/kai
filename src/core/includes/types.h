@@ -21,4 +21,6 @@ typedef int64_t Int64;
 typedef float Float32;
 typedef double Float64;
 
+typedef uint32_t Bool32;
+
 #endif /* KAI_TYPES_H */
