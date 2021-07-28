@@ -18,6 +18,18 @@ static inline void reset_memory_manager(void) {
     memset(&memory_manager, 0, sizeof(memory_manager));
 }
 
+static KAI_FORCEINLINE void get_initial_header_index(Uint64 &index, Uint64 &bit, const Uint64 *start_id = nullptr) {
+    Uint64 id = (start_id) ? *start_id : memory_manager.next_block_id;
+    index = id / 8;
+    bit = id % 8;
+}
+
+static KAI_FORCEINLINE void advance_header_index(Uint64 &index, Uint64 &bit) {
+    bit++;
+    index += (bit / 8);
+    bit %= 8;
+}
+
 void MemoryManager::init(size_t size) {
     if(size > 0 && !memory_manager.buffer) {
         reset_memory_manager();
@@ -55,11 +67,9 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
         Uint32 block_count = (Uint32)((bytes - 1) / BLOCK_SIZE) + 1;
         Uint64 initial_block_id = memory_manager.next_block_id;
 
-        Uint64 starting_header_index = (memory_manager.next_block_id / 8);
-        Uint64 starting_header_bit = (memory_manager.next_block_id % 8);
-
-        Uint64 header_index = starting_header_index;
-        Uint64 header_bit = starting_header_bit;
+        Uint64 header_index;
+        Uint64 header_bit;
+        get_initial_header_index(header_index, header_bit);
 
         bool valid;
         Uint32 blocks_evaluated = 0;
@@ -72,28 +82,27 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
                     valid = false;
                 }
 
-                header_bit++;
-                header_index += (header_bit / 8);
-                header_bit %= 8;
+                advance_header_index(header_index, header_bit);
             }
 
             blocks_evaluated += block_count;
-            memory_manager.next_block_id = ((header_index * 8) + header_bit) % memory_manager.total_block_count;
+            valid &= blocks_evaluated < memory_manager.total_block_count;
+
+            if(!valid) {
+                memory_manager.next_block_id = ((header_index * 8) + header_bit) % memory_manager.total_block_count;
+            }
         } while(!valid && blocks_evaluated < memory_manager.total_block_count);
 
         if(valid) {
-            header_index = starting_header_index;
-            header_bit = starting_header_bit;
+            get_initial_header_index(header_index, header_bit);
 
             // Mark all used blocks
             for(Uint32 i = 0; i < block_count; i++) {
                 memory_manager.header[header_index] |= (1 << header_bit);
-                header_bit++;
-                header_index += (header_bit / 8);
-                header_bit %= 8;
+                advance_header_index(header_index, header_bit);
             }
 
-            handle.block_start = (Uint32)initial_block_id;
+            handle.block_start = memory_manager.next_block_id;
             handle.block_count = block_count;
 
             memory_manager.bytes_used += bytes_used;
@@ -105,6 +114,21 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
     }
 
     return false;
+}
+
+void MemoryManager::free_backing_memory(MemoryHandle &handle) {
+    Uint64 header_index;
+    Uint64 header_bit;
+    get_initial_header_index(header_index, header_bit, &handle.block_start);
+
+    for(Uint32 i = 0; i < handle.block_count; i++) {
+        memory_manager.header[header_index] &= ~(1 << header_bit);
+        advance_header_index(header_index, header_bit);
+    }
+
+    memory_manager.bytes_used -= (BLOCK_SIZE * handle.block_count);
+    handle.block_start = 0;
+    handle.block_count = 0;
 }
 
 #undef BLOCK_SIZE

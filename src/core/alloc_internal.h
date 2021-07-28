@@ -11,7 +11,7 @@ struct MemoryManager;
 struct MemoryHandle {
     friend struct MemoryManager;
 private:
-    Uint32 block_start;
+    Uint64 block_start;
     Uint32 block_count;
 };
 
@@ -20,7 +20,7 @@ struct MemoryManager {
     static void destroy(void);
 
     static bool alloc_backing_memory(MemoryHandle &handle, size_t bytes);
-    static void free_backing_memory(const MemoryHandle &handle);
+    static void free_backing_memory(MemoryHandle &handle);
 
     static void * get_ptr(const MemoryHandle &handle);
 
