@@ -10,7 +10,7 @@
 #include "includes/utils.h"
 #include "../platform/platform.h"
 
-#define BLOCK_SIZE 256
+#define BLOCK_SIZE 64
 
 static MemoryManager memory_manager;
 
@@ -27,18 +27,19 @@ void MemoryManager::init(size_t size) {
         address = (void *)kai::gibibytes(2);
 #endif
 
-        Uint64 block_size = (size / (BLOCK_SIZE * 8)) + 1;
-        size += block_size;
+        Uint64 block_count = size / BLOCK_SIZE;
+        Uint64 block_bytes = block_count / 8;
+        size += block_bytes;
 
         kai::align_to_pow2(size, platform_get_page_size());
 
         memory_manager.buffer = platform_alloc_mem_arena(size, address);
         memory_manager.bytes_size = size;
         memory_manager.bytes_used = 0;
-        memory_manager.total_block_count = block_size;
+        memory_manager.total_block_count = block_count;
 
         memory_manager.header = (unsigned char *)memory_manager.buffer;
-        memory_manager.start = memory_manager.header + block_size;
+        memory_manager.start = memory_manager.header + block_bytes;
     }
 }
 
@@ -51,7 +52,7 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
     Uint64 bytes_used = memory_manager.bytes_used + bytes;
 
     if(bytes_used < memory_manager.bytes_size) {
-        Uint32 block_count = (Uint32)(bytes / BLOCK_SIZE) + 1;
+        Uint32 block_count = (Uint32)((bytes - 1) / BLOCK_SIZE) + 1;
         Uint64 initial_block_id = memory_manager.next_block_id;
 
         Uint64 starting_header_index = (memory_manager.next_block_id / 8);
@@ -69,7 +70,6 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
             for(Uint32 i = 0; i < block_count; i++) {
                 if(memory_manager.header[header_index] & (1 << header_bit)) {
                     valid = false;
-                    break;
                 }
 
                 header_bit++;
@@ -78,8 +78,7 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
             }
 
             blocks_evaluated += block_count;
-            memory_manager.next_block_id = (header_index * 8) + header_bit;
-
+            memory_manager.next_block_id = ((header_index * 8) + header_bit) % memory_manager.total_block_count;
         } while(!valid && blocks_evaluated < memory_manager.total_block_count);
 
         if(valid) {
@@ -94,10 +93,10 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
                 header_bit %= 8;
             }
 
-            handle.block_start = (Uint32)memory_manager.next_block_id;
+            handle.block_start = (Uint32)initial_block_id;
             handle.block_count = block_count;
 
-            memory_manager.bytes_used = bytes_used;
+            memory_manager.bytes_used += bytes_used;
             memory_manager.next_block_id = (header_index * 8) + header_bit;
             return true;
         } else {
