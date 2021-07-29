@@ -6,15 +6,6 @@
 #ifndef KAI_ALLOC_INTERNAL_H
 #define KAI_ALLOC_INTERNAL_H
 
-struct MemoryManager;
-
-struct MemoryHandle {
-    friend struct MemoryManager;
-private:
-    Uint64 block_start;
-    Uint32 block_count;
-};
-
 struct MemoryManager {
     static void init(size_t size);
     static void destroy(void);

@@ -3,7 +3,8 @@
  * See LICENSE for details
  **************************************************/
 
-#define WIN32_LEAN_AND_MEAN 1
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdlib.h>
 

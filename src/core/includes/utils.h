@@ -42,6 +42,16 @@ namespace kai {
         alignment--;
         value = (value + alignment) & ~alignment;
     }
+
+    template<typename T>
+    KAI_FORCEINLINE T min(T a, T b) {
+        return (a <= b) ? a : b;
+    }
+
+    template<typename T>
+    KAI_FORCEINLINE T max(T a, T b) {
+        return (a >= b) ? a : b;
+    }
 }
 
 #endif /* KAI_UTILS_H */

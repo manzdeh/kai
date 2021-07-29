@@ -5,12 +5,13 @@
 
 #include <string.h>
 
+#include "includes/alloc.h"
 #include "alloc_internal.h"
 
 #include "includes/utils.h"
 #include "../platform/platform.h"
 
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 256
 
 static MemoryManager memory_manager;
 
@@ -126,7 +127,13 @@ void MemoryManager::free_backing_memory(MemoryHandle &handle) {
         advance_header_index(header_index, header_bit);
     }
 
-    memory_manager.bytes_used -= (BLOCK_SIZE * handle.block_count);
+    Uint64 bytes_reclaimed = BLOCK_SIZE * handle.block_count;
+    if((memory_manager.bytes_used - bytes_reclaimed) < memory_manager.bytes_used) { // Handle integer overflow
+        memory_manager.bytes_used -= bytes_reclaimed;
+    } else {
+        memory_manager.bytes_used = 0;
+    }
+
     handle.block_start = 0;
     handle.block_count = 0;
 }

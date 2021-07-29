@@ -6,6 +6,7 @@
 #ifndef KAI_ENGINE_H
 #define KAI_ENGINE_H
 
+#include "alloc.h"
 #include "types.h"
 #include "utils.h"
 
