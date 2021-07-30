@@ -10,10 +10,10 @@ struct MemoryManager {
     static void init(size_t size);
     static void destroy(void);
 
-    static bool alloc_backing_memory(MemoryHandle &handle, size_t bytes);
-    static void free_backing_memory(MemoryHandle &handle);
+    static bool reserve_blocks(MemoryHandle &handle, size_t bytes);
+    static void free_blocks(MemoryHandle &handle);
 
-    static void * get_ptr(const MemoryHandle &handle);
+    static void * get_ptr(const MemoryHandle &handle, Uint32 block_offset = 0);
 
     void *buffer;
     unsigned char *header;

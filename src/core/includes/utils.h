@@ -7,6 +7,7 @@
 #define KAI_UTILS_H
 
 #include <assert.h>
+#include <type_traits>
 
 #include "types.h"
 
@@ -32,12 +33,18 @@ namespace kai {
         return mebibytes(value) * 1024ull;
     }
 
-    KAI_FORCEINLINE bool is_pow2(Uint64 value) {
+    template<typename T>
+    KAI_FORCEINLINE bool is_pow2(T value) {
+        static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+                      "Value can only be an unsigned integer");
         return (value > 0) && (((value - 1) & value) == 0);
     }
 
     // NOTE: 'alignment' must be a power of two
-    KAI_FORCEINLINE void align_to_pow2(Uint64 &value, Uint64 alignment) {
+    template<typename T>
+    KAI_FORCEINLINE void align_to_pow2(T &value, T alignment) {
+        static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+                      "Value can only be an unsigned integer");
         KAI_ASSERT(is_pow2(alignment));
         alignment--;
         value = (value + alignment) & ~alignment;
@@ -51,6 +58,11 @@ namespace kai {
     template<typename T>
     KAI_FORCEINLINE T max(T a, T b) {
         return (a >= b) ? a : b;
+    }
+
+    template<typename T>
+    KAI_FORCEINLINE T abs(T val) {
+        return (val >= 0) ? val : -val;
     }
 }
 

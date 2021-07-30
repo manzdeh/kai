@@ -6,9 +6,8 @@
 #include <string.h>
 
 #include "includes/alloc.h"
-#include "alloc_internal.h"
-
 #include "includes/utils.h"
+#include "alloc_internal.h"
 #include "../platform/platform.h"
 
 #define BLOCK_SIZE 256
@@ -61,7 +60,7 @@ void MemoryManager::destroy(void) {
     reset_memory_manager();
 }
 
-bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
+bool MemoryManager::reserve_blocks(MemoryHandle &handle, size_t bytes) {
     Uint64 bytes_used = memory_manager.bytes_used + bytes;
 
     if(bytes_used < memory_manager.bytes_size) {
@@ -117,7 +116,7 @@ bool MemoryManager::alloc_backing_memory(MemoryHandle &handle, size_t bytes) {
     return false;
 }
 
-void MemoryManager::free_backing_memory(MemoryHandle &handle) {
+void MemoryManager::free_blocks(MemoryHandle &handle) {
     Uint64 header_index;
     Uint64 header_bit;
     get_initial_header_index(header_index, header_bit, &handle.block_start);
@@ -127,7 +126,7 @@ void MemoryManager::free_backing_memory(MemoryHandle &handle) {
         advance_header_index(header_index, header_bit);
     }
 
-    Uint64 bytes_reclaimed = BLOCK_SIZE * handle.block_count;
+    Uint64 bytes_reclaimed = handle.get_size();
     if((memory_manager.bytes_used - bytes_reclaimed) < memory_manager.bytes_used) { // Handle integer overflow
         memory_manager.bytes_used -= bytes_reclaimed;
     } else {
@@ -137,5 +136,41 @@ void MemoryManager::free_backing_memory(MemoryHandle &handle) {
     handle.block_start = 0;
     handle.block_count = 0;
 }
+
+void * MemoryManager::get_ptr(const MemoryHandle &handle, Uint32 block_offset) {
+    Uint64 block = handle.block_start + block_offset;
+
+    if(handle.block_count > 0 && (handle.block_start + handle.block_count) < block) {
+        return (unsigned char *)memory_manager.start + (block * BLOCK_SIZE);
+    }
+
+    return nullptr;
+}
+
+Uint64 MemoryHandle::get_size(void) const {
+    return BLOCK_SIZE * block_count;
+}
+
+// -------------------------------------------------- Stack Allocator --------------------------------------------------
+kai::StackAllocator::StackAllocator(Uint32 bytes) {
+    if(!MemoryManager::reserve_blocks(handle, bytes)) {
+        // TODO: Log an error that reserving the blocks failed
+    }
+}
+
+// TODO: Should perhaps return a handle instead?
+void * kai::StackAllocator::alloc(Uint32 bytes) {
+    kai::align_to_pow2(bytes, 4u);
+    void *address = nullptr;
+
+    if((current_marker + bytes) < handle.get_size()) {
+        current_marker += bytes;
+        return (unsigned char *)MemoryManager::get_ptr(handle) + current_marker;
+    }
+
+    return address;
+}
+
+void kai::StackAllocator::free(StackMarker /*marker*/) {}
 
 #undef BLOCK_SIZE
