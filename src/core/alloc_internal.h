@@ -20,6 +20,7 @@ struct MemoryManager {
     void *start;
     Uint64 bytes_used;
     Uint64 bytes_size;
+    Uint64 total_bytes;
     Uint64 total_block_count;
     Uint64 next_block_id;
 };

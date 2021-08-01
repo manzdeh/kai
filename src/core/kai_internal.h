@@ -6,7 +6,7 @@
 #ifndef KAI_ENGINE_INTERNAL_H
 #define KAI_ENGINE_INTERNAL_H
 
-void init_memory_manager(size_t size);
+void init_engine(void);
 void destroy_engine(void);
 
 #endif /* KAI_ENGINE_INTERNAL_H */

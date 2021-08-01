@@ -28,6 +28,7 @@ static KAI_FORCEINLINE void advance_header_index(Uint64 &index, Uint64 &bit) {
     bit++;
     index += (bit / 8);
     bit %= 8;
+    index %= (memory_manager.total_block_count / 8);
 }
 
 void MemoryManager::init(size_t size) {
@@ -39,6 +40,8 @@ void MemoryManager::init(size_t size) {
         address = (void *)kai::gibibytes(2);
 #endif
 
+        memory_manager.bytes_size = size;
+
         Uint64 block_count = size / BLOCK_SIZE;
         Uint64 block_bytes = block_count / 8;
         size += block_bytes;
@@ -46,7 +49,7 @@ void MemoryManager::init(size_t size) {
         kai::align_to_pow2(size, platform_get_page_size());
 
         memory_manager.buffer = platform_alloc_mem_arena(size, address);
-        memory_manager.bytes_size = size;
+        memory_manager.total_bytes = size;
         memory_manager.bytes_used = 0;
         memory_manager.total_block_count = block_count;
 
@@ -78,15 +81,16 @@ bool MemoryManager::reserve_blocks(MemoryHandle &handle, size_t bytes) {
             valid = true;
 
             for(Uint32 i = 0; i < block_count; i++) {
+                blocks_evaluated++;
+
                 if(memory_manager.header[header_index] & (1 << header_bit)) {
                     valid = false;
+                    advance_header_index(header_index, header_bit);
+                    break;
                 }
 
                 advance_header_index(header_index, header_bit);
             }
-
-            blocks_evaluated += block_count;
-            valid &= blocks_evaluated < memory_manager.total_block_count;
 
             if(!valid) {
                 memory_manager.next_block_id = ((header_index * 8) + header_bit) % memory_manager.total_block_count;
@@ -105,7 +109,7 @@ bool MemoryManager::reserve_blocks(MemoryHandle &handle, size_t bytes) {
             handle.block_start = memory_manager.next_block_id;
             handle.block_count = block_count;
 
-            memory_manager.bytes_used += bytes_used;
+            memory_manager.bytes_used = bytes_used;
             memory_manager.next_block_id = (header_index * 8) + header_bit;
             return true;
         } else {

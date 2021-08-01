@@ -15,7 +15,7 @@
 #define DEFAULT_WINDOW_WIDTH 1024
 #define DEFAULT_WINDOW_HEIGHT 576
 
-#define WIN_CHECK_ERROR(expr, msg) \
+#define WIN32_CHECK_ERROR(expr, msg) \
     do { \
         if(!(expr)) { \
             MessageBoxW(nullptr, msg, L"Error", MB_ICONERROR); \
@@ -73,7 +73,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
                                   instance,
                                   nullptr);
 
-    WIN_CHECK_ERROR(window, L"Could not create window!\n");
+    WIN32_CHECK_ERROR(window, L"Could not create window!\n");
 
     init_engine();
 

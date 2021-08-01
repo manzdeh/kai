@@ -9,6 +9,6 @@ SET LINKER_FLAGS=/INCREMENTAL:NO /SUBSYSTEM:WINDOWS
 SET LIBRARIES=kernel32.lib user32.lib
 
 pushd bin
-cl %DEFINES% %COMPILER_FLAGS% ..\src\platform\win\win_kai.cpp %LIBRARIES% /link %LINKER_FLAGS%
+cl %DEFINES% %COMPILER_FLAGS% ..\src\platform\win32\win32_kai.cpp %LIBRARIES% /link %LINKER_FLAGS%
 copy /b /y %EXECUTABLE% ..\
 popd
