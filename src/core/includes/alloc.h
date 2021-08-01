@@ -29,17 +29,20 @@ namespace kai {
     typedef Uint32 StackMarker;
 
     struct StackAllocator {
-        explicit StackAllocator(Uint32 bytes);
+        explicit StackAllocator(Uint32 bytes, Bool32 aligned_allocs = true); // NOTE: Allocators are limited to 4GB
 
-        void * alloc(Uint32 bytes);
+        void destroy(void);
+
+        void * alloc(Uint32 bytes, StackMarker *out_marker = nullptr);
 
         template<typename T>
-        T * alloc(void) {
+        T * alloc(StackMarker *out_marker = nullptr, Uint32 elem_count = 1) {
             static_assert(!std::is_pointer<T>::value, "Type shouldn't be a pointer!");
-            return (T *)alloc(sizeof(T));
+            return (T *)alloc(sizeof(T) * elem_count, out_marker);
         }
 
         void free(StackMarker marker);
+        void clear(void);
 
         StackMarker get_marker(void) const {
             return current_marker;
@@ -48,6 +51,7 @@ namespace kai {
     private:
         MemoryHandle handle;
         StackMarker current_marker = 0;
+        Bool32 should_align = true;
     };
 }
 

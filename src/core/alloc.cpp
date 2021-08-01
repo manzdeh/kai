@@ -141,11 +141,9 @@ void MemoryManager::free_blocks(MemoryHandle &handle) {
     handle.block_count = 0;
 }
 
-void * MemoryManager::get_ptr(const MemoryHandle &handle, Uint32 block_offset) {
-    Uint64 block = handle.block_start + block_offset;
-
-    if(handle.block_count > 0 && (handle.block_start + handle.block_count) < block) {
-        return (unsigned char *)memory_manager.start + (block * BLOCK_SIZE);
+void * MemoryManager::get_ptr(const MemoryHandle &handle, Uint32 byte_offset) {
+    if(handle.block_count > 0 && byte_offset < handle.get_size()) {
+        return (unsigned char *)memory_manager.start + (handle.block_start * BLOCK_SIZE) + byte_offset;
     }
 
     return nullptr;
@@ -156,25 +154,54 @@ Uint64 MemoryHandle::get_size(void) const {
 }
 
 // -------------------------------------------------- Stack Allocator --------------------------------------------------
-kai::StackAllocator::StackAllocator(Uint32 bytes) {
+kai::StackAllocator::StackAllocator(Uint32 bytes, Bool32 aligned_allocs) : should_align(aligned_allocs) {
     if(!MemoryManager::reserve_blocks(handle, bytes)) {
-        // TODO: Log an error that reserving the blocks failed
+        // TODO: Error logging
     }
 }
 
-// TODO: Should perhaps return a handle instead?
-void * kai::StackAllocator::alloc(Uint32 bytes) {
-    kai::align_to_pow2(bytes, 4u);
+void kai::StackAllocator::destroy(void) {
+    MemoryManager::free_blocks(handle);
+    memset(this, 0, sizeof(*this));
+}
+
+void * kai::StackAllocator::alloc(Uint32 bytes, StackMarker *out_marker) {
     void *address = nullptr;
 
-    if((current_marker + bytes) < handle.get_size()) {
-        current_marker += bytes;
-        return (unsigned char *)MemoryManager::get_ptr(handle) + current_marker;
+    if(bytes > 0) {
+        if(should_align) {
+            kai::align_to_pow2(bytes, 4u);
+        }
+
+        Uint32 bytes_free = (Uint32)handle.get_size() - current_marker;
+
+        if(bytes_free > 0 && bytes <= bytes_free) {
+            address = (unsigned char *)MemoryManager::get_ptr(handle, current_marker);
+
+            if(address) {
+                if(out_marker) {
+                    *out_marker = current_marker;
+                }
+                current_marker += bytes;
+            }
+        }
     }
 
     return address;
 }
 
-void kai::StackAllocator::free(StackMarker /*marker*/) {}
+void kai::StackAllocator::free(StackMarker marker) {
+    bool should_clear = marker == 0 || marker > current_marker;
+    if(should_clear) {
+        clear();
+        return;
+    }
+
+    current_marker = marker;
+}
+
+void kai::StackAllocator::clear(void) {
+    current_marker = 0;
+}
 
 #undef BLOCK_SIZE

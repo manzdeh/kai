@@ -13,7 +13,7 @@ struct MemoryManager {
     static bool reserve_blocks(MemoryHandle &handle, size_t bytes);
     static void free_blocks(MemoryHandle &handle);
 
-    static void * get_ptr(const MemoryHandle &handle, Uint32 block_offset = 0);
+    static void * get_ptr(const MemoryHandle &handle, Uint32 byte_offset = 0);
 
     void *buffer;
     unsigned char *header;
