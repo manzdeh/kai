@@ -3,12 +3,10 @@
  * See LICENSE for details
  **************************************************/
 
-#ifndef KAI_ENGINE_H
-#define KAI_ENGINE_H
+#ifndef KAI_KEYBOARD_INTERNAL_H
+#define KAI_KEYBOARD_INTERNAL_H
 
-#include "alloc.h"
-#include "keyboard.h"
-#include "types.h"
-#include "utils.h"
+void init_keyboard(void);
+void swap_keyboard_buffers(void);
 
-#endif /* KAI_ENGINE_H */
+#endif /* KAI_KEYBOARD_INTERNAL_H */
