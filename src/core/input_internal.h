@@ -3,10 +3,14 @@
  * See LICENSE for details
  **************************************************/
 
-#ifndef KAI_KEYBOARD_INTERNAL_H
-#define KAI_KEYBOARD_INTERNAL_H
+#ifndef KAI_INPUT_INTERNAL_H
+#define KAI_INPUT_INTERNAL_H
+
+#include "includes/input.h"
 
 void init_keyboard(void);
 void swap_keyboard_buffers(void);
 
-#endif /* KAI_KEYBOARD_INTERNAL_H */
+void set_key(kai::Key key, Bool32 value);
+
+#endif /* KAI_INPUT_INTERNAL_H */

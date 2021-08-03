@@ -37,7 +37,7 @@ void MemoryManager::init(size_t size) {
 
         void *address = nullptr;
 #ifdef KAI_DEBUG
-        address = (void *)kai::gibibytes(2);
+        address = reinterpret_cast<void *>(kai::gibibytes(2));
 #endif
 
         memory_manager.bytes_size = size;
@@ -53,7 +53,7 @@ void MemoryManager::init(size_t size) {
         memory_manager.bytes_used = 0;
         memory_manager.total_block_count = block_count;
 
-        memory_manager.header = (unsigned char *)memory_manager.buffer;
+        memory_manager.header = static_cast<unsigned char *>(memory_manager.buffer);
         memory_manager.start = memory_manager.header + block_bytes;
     }
 }
@@ -67,7 +67,7 @@ bool MemoryManager::reserve_blocks(MemoryHandle &handle, size_t bytes) {
     Uint64 bytes_used = memory_manager.bytes_used + bytes;
 
     if(bytes_used < memory_manager.bytes_size) {
-        Uint32 block_count = (Uint32)((bytes - 1) / BLOCK_SIZE) + 1;
+        Uint32 block_count = static_cast<Uint32>((bytes - 1) / BLOCK_SIZE) + 1;
         Uint64 initial_block_id = memory_manager.next_block_id;
 
         Uint64 header_index;
@@ -143,7 +143,7 @@ void MemoryManager::free_blocks(MemoryHandle &handle) {
 
 void * MemoryManager::get_ptr(const MemoryHandle &handle, Uint32 byte_offset) {
     if(handle.block_count > 0 && byte_offset < handle.get_size()) {
-        return (unsigned char *)memory_manager.start + (handle.block_start * BLOCK_SIZE) + byte_offset;
+        return static_cast<unsigned char *>(memory_manager.start) + (handle.block_start * BLOCK_SIZE) + byte_offset;
     }
 
     return nullptr;
@@ -173,10 +173,10 @@ void * kai::StackAllocator::alloc(Uint32 bytes, StackMarker *out_marker) {
             kai::align_to_pow2(bytes, 4u);
         }
 
-        Uint32 bytes_free = (Uint32)handle.get_size() - current_marker;
+        Uint32 bytes_free = static_cast<Uint32>(handle.get_size()) - current_marker;
 
         if(bytes_free > 0 && bytes <= bytes_free) {
-            address = (unsigned char *)MemoryManager::get_ptr(handle, current_marker);
+            address = MemoryManager::get_ptr(handle, current_marker);
 
             if(address) {
                 if(out_marker) {

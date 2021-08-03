@@ -14,7 +14,7 @@
 #define KAI_ASSERT(expr) assert(expr)
 #define KAI_IGNORED_VARIABLE(v) (void)v
 
-#ifdef _WIN32
+#ifdef KAI_PLATFORM_WIN32
 #define KAI_FORCEINLINE __forceinline
 #else
 #define KAI_FORCEINLINE inline

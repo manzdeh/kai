@@ -3,8 +3,8 @@
  * See LICENSE for details
  **************************************************/
 
-#ifndef KAI_KEYBOARD_H
-#define KAI_KEYBOARD_H
+#ifndef KAI_INPUT_H
+#define KAI_INPUT_H
 
 #include "types.h"
 
@@ -57,7 +57,6 @@ namespace kai {
         left_bracket,
         right_bracket,
         backslash,
-        non_us_hash,
         semicolon,
         apostrophe,
         tilde,
@@ -77,18 +76,6 @@ namespace kai {
         f10,
         f11,
         f12,
-        f13,
-        f14,
-        f15,
-        f16,
-        f17,
-        f18,
-        f19,
-        f20,
-        f21,
-        f22,
-        f23,
-        f24,
         print_screen,
         scroll_lock,
         pause,
@@ -119,7 +106,6 @@ namespace kai {
         num_9,
         num_0,
         num_period,
-        non_us_backslash,
         left_control,
         left_shift,
         left_alt,
@@ -138,4 +124,4 @@ namespace kai {
     bool key_release(Key key);
 }
 
-#endif /* KAI_KEYBOARD_H */
+#endif /* KAI_INPUT_H */

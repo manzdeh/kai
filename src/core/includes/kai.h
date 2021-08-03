@@ -7,7 +7,7 @@
 #define KAI_ENGINE_H
 
 #include "alloc.h"
-#include "keyboard.h"
+#include "input.h"
 #include "types.h"
 #include "utils.h"
 
