@@ -5,7 +5,6 @@
 
 #include "win32_input.h"
 
-// TODO: Test this and fill out missing values
 kai::Key win32_get_kai_key_from_scancode(UINT win_scancode) {
 #define MAP_TO_KAI_KEY(value, kai_key) case value: return kai::Key::kai_key
 

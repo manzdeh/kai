@@ -11,11 +11,11 @@
 
 void init_engine(void) {
     MemoryManager::init(kai::gibibytes(4));
-    init_keyboard();
+    init_input();
 }
 
 void tick_engine(void) {
-    swap_keyboard_buffers();
+    swap_input_buffers();
 }
 
 void destroy_engine(void) {

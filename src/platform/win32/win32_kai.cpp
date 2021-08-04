@@ -27,9 +27,49 @@
     } while(0)
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
+
     switch(message) {
         case WM_DESTROY:
             PostQuitMessage(0);
+            break;
+        case WM_LBUTTONDOWN:
+            set_mouse_button(kai::MouseButton::left, true);
+            break;
+        case WM_MBUTTONDOWN:
+            set_mouse_button(kai::MouseButton::middle, true);
+            break;
+        case WM_RBUTTONDOWN:
+            set_mouse_button(kai::MouseButton::right, true);
+            break;
+        case WM_XBUTTONDOWN: {
+            UINT xbtn = GET_XBUTTON_WPARAM(w_param);
+            if(xbtn & 0x1) {
+                set_mouse_button(kai::MouseButton::x1, true);
+            } else if(xbtn & 0x2) {
+                set_mouse_button(kai::MouseButton::x2, true);
+            }
+            break;
+        }
+        case WM_LBUTTONDBLCLK:
+            set_mouse_button(kai::MouseButton::left, true, true);
+            break;
+        case WM_MBUTTONDBLCLK:
+            set_mouse_button(kai::MouseButton::middle, true, true);
+            break;
+        case WM_RBUTTONDBLCLK:
+            set_mouse_button(kai::MouseButton::right, true, true);
+            break;
+        case WM_XBUTTONDBLCLK: {
+            UINT xbtn = GET_XBUTTON_WPARAM(w_param);
+            if(xbtn & 0x1) {
+                set_mouse_button(kai::MouseButton::x1, true, true);
+            } else if(xbtn & 0x2) {
+                set_mouse_button(kai::MouseButton::x2, true, true);
+            }
+            break;
+        }
+        case WM_MOUSEWHEEL:
+            set_scroll_delta(GET_WHEEL_DELTA_WPARAM(w_param) / WHEEL_DELTA);
             break;
         default:
             return DefWindowProcW(window, message, w_param, l_param);
@@ -41,7 +81,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(WNDCLASSEXW);
-    window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+    window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance;
     window_class.hIcon = LoadIconW(nullptr, IDI_APPLICATION);

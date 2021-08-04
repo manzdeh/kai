@@ -122,6 +122,23 @@ namespace kai {
     bool key_up(Key key);
     bool key_press(Key key);
     bool key_release(Key key);
+
+    enum class MouseButton : Uint32 {
+        left,
+        middle,
+        right,
+        x1,
+        x2,
+
+        count
+    };
+
+    bool mouse_down(MouseButton button);
+    bool mouse_up(MouseButton button);
+    bool mouse_click(MouseButton button);
+    bool mouse_release(MouseButton button);
+    void get_abs_mouse_pos(Int32 &x, Int32 &y);
+    Int32 get_scroll_delta(void);
 }
 
 #endif /* KAI_INPUT_H */
