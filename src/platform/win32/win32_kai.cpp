@@ -7,12 +7,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdlib.h>
-#include <stdio.h>
+
+#include "../../core/input_internal.h"
+#include "../platform.h"
 
 #include "../../core/kai.cpp"
-#include "../platform.h"
-#include "../../core/input_internal.h"
-
 #include "win32_input.cpp"
 
 // NOTE: Temporary
@@ -85,13 +84,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     for(;;) {
         while(PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
             switch(message.message) {
-                case WM_SYSKEYDOWN:
-                case WM_KEYDOWN: {
-                    UINT scancode = (message.lParam >> 16) & 0x7f;
-                    bool extended = ((message.lParam >> 24) & 1) != 0;
-                    set_key(win32_get_kai_key_from_scancode(scancode, extended), true);
-                    break;
-                }
                 case WM_QUIT:
                     goto exit_engine;
                 default:
@@ -101,6 +93,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
+
+        win32_poll_keyboard_input();
 
         tick_engine();
     }

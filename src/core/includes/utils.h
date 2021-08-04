@@ -20,6 +20,8 @@
 #define KAI_FORCEINLINE inline
 #endif
 
+#define KAI_ARRAY_COUNT(a) (sizeof(a) / sizeof((a)[0]))
+
 namespace kai {
     constexpr Uint64 kibibytes(Uint64 value) {
         return value * 1024ull;

@@ -10,6 +10,7 @@
 
 #include "../../core/includes/input.h"
 
-kai::Key win32_get_kai_key_from_scancode(UINT win_scancode, bool extended);
+kai::Key win32_get_kai_key_from_scancode(UINT win_scancode);
+void win32_poll_keyboard_input(void);
 
 #endif /* KAI_WIN32_INPUT_H */
