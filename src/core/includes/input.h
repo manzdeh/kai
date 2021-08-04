@@ -137,6 +137,7 @@ namespace kai {
     bool mouse_up(MouseButton button);
     bool mouse_click(MouseButton button);
     bool mouse_release(MouseButton button);
+    bool mouse_double_click(MouseButton button);
     void get_abs_mouse_pos(Int32 &x, Int32 &y);
     Int32 get_scroll_delta(void);
 }

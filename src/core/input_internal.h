@@ -13,7 +13,7 @@ void swap_input_buffers(void);
 
 void set_key(kai::Key key, bool value);
 
-void set_mouse_button(kai::MouseButton button, bool value, bool double_click = false);
+void set_mouse_button(kai::MouseButton button, bool value, bool double_click);
 void set_scroll_delta(Int32 delta);
 
 #endif /* KAI_INPUT_INTERNAL_H */

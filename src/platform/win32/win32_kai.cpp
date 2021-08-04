@@ -28,25 +28,36 @@
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
+    auto get_xbutton = [w_param](kai::MouseButton &button) -> bool {
+        UINT xbtn = GET_XBUTTON_WPARAM(w_param);
+        if(xbtn & 0x1) {
+            button = kai::MouseButton::x1;
+            return true;
+        } else if(xbtn & 0x2) {
+            button = kai::MouseButton::x2;
+            return true;
+        }
+
+        return false;
+    };
+
     switch(message) {
         case WM_DESTROY:
             PostQuitMessage(0);
             break;
         case WM_LBUTTONDOWN:
-            set_mouse_button(kai::MouseButton::left, true);
+            set_mouse_button(kai::MouseButton::left, true, false);
             break;
         case WM_MBUTTONDOWN:
-            set_mouse_button(kai::MouseButton::middle, true);
+            set_mouse_button(kai::MouseButton::middle, true, false);
             break;
         case WM_RBUTTONDOWN:
-            set_mouse_button(kai::MouseButton::right, true);
+            set_mouse_button(kai::MouseButton::right, true, false);
             break;
         case WM_XBUTTONDOWN: {
-            UINT xbtn = GET_XBUTTON_WPARAM(w_param);
-            if(xbtn & 0x1) {
-                set_mouse_button(kai::MouseButton::x1, true);
-            } else if(xbtn & 0x2) {
-                set_mouse_button(kai::MouseButton::x2, true);
+            kai::MouseButton b;
+            if(get_xbutton(b)) {
+                set_mouse_button(b, true, false);
             }
             break;
         }
@@ -60,11 +71,9 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
             set_mouse_button(kai::MouseButton::right, true, true);
             break;
         case WM_XBUTTONDBLCLK: {
-            UINT xbtn = GET_XBUTTON_WPARAM(w_param);
-            if(xbtn & 0x1) {
-                set_mouse_button(kai::MouseButton::x1, true, true);
-            } else if(xbtn & 0x2) {
-                set_mouse_button(kai::MouseButton::x2, true, true);
+            kai::MouseButton b;
+            if(get_xbutton(b)) {
+                set_mouse_button(b, true, true);
             }
             break;
         }
