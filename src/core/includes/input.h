@@ -8,6 +8,8 @@
 
 #include "types.h"
 
+#define KAI_MAX_GAMEPADS 4
+
 namespace kai {
     enum class Key : Uint32 {
         none = 0,
@@ -138,8 +140,37 @@ namespace kai {
     bool mouse_click(MouseButton button);
     bool mouse_release(MouseButton button);
     bool mouse_double_click(MouseButton button);
-    void get_abs_mouse_pos(Int32 &x, Int32 &y);
+    void get_rel_mouse_pos(Int32 &x, Int32 &y);
     Int32 get_scroll_delta(void);
+
+    enum class GamepadButton : Uint32 {
+        a,
+        b,
+        x,
+        y,
+        start,
+        back,
+        left_bumper,
+        left_trigger,
+        right_bumper,
+        right_trigger,
+        left_stick,
+        right_stick,
+        dpad_right,
+        dpad_left,
+        dpad_down,
+        dpad_up
+    };
+
+    bool gamepad_down(GamepadButton button);
+    bool gamepad_up(GamepadButton button);
+    bool gamepad_press(GamepadButton button);
+    bool gamepad_release(GamepadButton button);
+    void gamepad_get_left_stick_pos(float &x, float &y, Uint32 controller = 0); // TODO: Change this to return a Vec2 once that's implemented
+    void gamepad_get_right_stick_pos(float &x, float &y, Uint32 controller = 0); // TODO: Same for this one
+    float gamepad_get_left_trigger_value(Uint32 controller = 0);
+    float gamepad_get_right_trigger_value(Uint32 controller = 0);
+    void gamepad_set_rumble_intensity(float value, Uint32 controller = 0);
 }
 
 #endif /* KAI_INPUT_H */

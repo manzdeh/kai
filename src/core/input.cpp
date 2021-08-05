@@ -6,6 +6,8 @@
 #include "includes/input.h"
 #include "input_internal.h"
 
+#include "../platform/platform.h"
+
 static struct {
     Uint8 *keys;
     Uint32 index;
@@ -108,7 +110,9 @@ bool kai::mouse_double_click(MouseButton button) {
     return mouse_manager.mouse[static_cast<Uint8>(button)] == 0x3; // First two bits are set for double-click
 }
 
-void kai::get_abs_mouse_pos(Int32 &x, Int32 &y) {} // TODO: Implement me!
+void kai::get_rel_mouse_pos(Int32 &x, Int32 &y) {
+    platform_get_rel_mouse_pos(x, y);
+}
 
 Int32 kai::get_scroll_delta(void) {
     return mouse_manager.delta;

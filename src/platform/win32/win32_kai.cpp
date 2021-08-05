@@ -8,6 +8,8 @@
 #include <windows.h>
 #include <stdlib.h>
 
+#include "win32_kai.h"
+
 #include "../../core/input_internal.h"
 #include "../platform.h"
 
@@ -25,6 +27,10 @@
             exit(-1); \
         } \
     } while(0)
+
+static struct {
+    HWND window;
+} win32_state;
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
@@ -112,20 +118,20 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     DWORD window_flags = WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SIZEBOX | WS_SYSMENU | WS_VISIBLE;
     AdjustWindowRectEx(&client_rect, window_flags, FALSE, 0);
 
-    HWND window = CreateWindowExW(0,
-                                  window_class.lpszClassName,
-                                  L"Kai Engine",
-                                  window_flags,
-                                  CW_USEDEFAULT,
-                                  CW_USEDEFAULT,
-                                  client_rect.right - client_rect.left,
-                                  client_rect.bottom - client_rect.top,
-                                  nullptr,
-                                  nullptr,
-                                  instance,
-                                  nullptr);
+    win32_state.window = CreateWindowExW(0,
+                                         window_class.lpszClassName,
+                                         L"Kai Engine",
+                                         window_flags,
+                                         CW_USEDEFAULT,
+                                         CW_USEDEFAULT,
+                                         client_rect.right - client_rect.left,
+                                         client_rect.bottom - client_rect.top,
+                                         nullptr,
+                                         nullptr,
+                                         instance,
+                                         nullptr);
 
-    WIN32_CHECK_ERROR(window, L"Could not create window!\n");
+    WIN32_CHECK_ERROR(win32_state.window, L"Could not create window!\n");
 
     init_engine();
 
@@ -150,9 +156,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
 
 exit_engine:
     destroy_engine();
-    DestroyWindow(window);
+    DestroyWindow(win32_state.window);
 
     return 0;
+}
+
+HWND win32_get_window(void) {
+    return win32_state.window;
 }
 
 void * platform_alloc_mem_arena(size_t bytes, void *address) {

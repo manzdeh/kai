@@ -5,6 +5,9 @@
 
 #include "win32_input.h"
 
+#include "win32_kai.h"
+#include "../platform.h"
+
 kai::Key win32_get_kai_key_from_scancode(UINT win_scancode) {
 #define MAP_TO_KAI_KEY(value, kai_key) case value: return kai::Key::kai_key
 
@@ -168,4 +171,13 @@ void win32_poll_keyboard_input(void) {
             set_key(win32_get_kai_key_from_scancode(scancode), true);
         }
     }
+}
+
+void platform_get_rel_mouse_pos(Int32 &x, Int32 &y) {
+    POINT point;
+    GetCursorPos(&point);
+    ScreenToClient(win32_get_window(), &point);
+
+    x = point.x;
+    y = point.y;
 }
