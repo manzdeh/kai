@@ -6,6 +6,7 @@
 #ifndef KAI_INPUT_H
 #define KAI_INPUT_H
 
+#include "math.h"
 #include "types.h"
 
 #define KAI_MAX_GAMEPADS 4
@@ -156,21 +157,21 @@ namespace kai {
         right_trigger,
         left_stick,
         right_stick,
-        dpad_right,
-        dpad_left,
+        dpad_up,
         dpad_down,
-        dpad_up
+        dpad_left,
+        dpad_right
     };
 
-    bool gamepad_down(GamepadButton button);
-    bool gamepad_up(GamepadButton button);
-    bool gamepad_press(GamepadButton button);
-    bool gamepad_release(GamepadButton button);
-    void gamepad_get_left_stick_pos(float &x, float &y, Uint32 controller = 0); // TODO: Change this to return a Vec2 once that's implemented
-    void gamepad_get_right_stick_pos(float &x, float &y, Uint32 controller = 0); // TODO: Same for this one
-    float gamepad_get_left_trigger_value(Uint32 controller = 0);
-    float gamepad_get_right_trigger_value(Uint32 controller = 0);
-    void gamepad_set_rumble_intensity(float value, Uint32 controller = 0);
+    bool gamepad_down(GamepadButton button, Uint32 controller = 0);
+    bool gamepad_up(GamepadButton button, Uint32 controller = 0);
+    bool gamepad_press(GamepadButton button, Uint32 controller = 0);
+    bool gamepad_release(GamepadButton button, Uint32 controller = 0);
+    kai::Vec2 gamepad_get_left_stick_pos(Uint32 controller = 0);
+    kai::Vec2 gamepad_get_right_stick_pos(Uint32 controller = 0);
+    Float32 gamepad_left_trigger(Uint32 controller = 0);
+    Float32 gamepad_right_trigger(Uint32 controller = 0);
+    void gamepad_set_rumble_intensity(Float32 value, Uint32 controller = 0);
 }
 
 #endif /* KAI_INPUT_H */
