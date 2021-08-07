@@ -6,8 +6,10 @@
 #ifndef KAI_MATH_H
 #define KAI_MATH_H
 
-#include "utils.h"
 #include "types.h"
+#include "utils.h"
+
+#include <math.h>
 
 namespace kai {
     template<typename T>
@@ -24,11 +26,25 @@ namespace kai {
         value = min(max(v0, value), v1);
     }
 
-    struct Vec2 {
-        Vec2(Float32 x = 0.0f, Float32 y = 0.0f) : x(x), y(y) {}
+    Float32 square_root(Float32 value) {
+        return sqrtf(value);
+    }
 
-        Float32 x;
-        Float32 y;
+    struct Vec2 {
+        Vec2() = default;
+        Vec2(Float32 x, Float32 y) : x(x), y(y) {}
+
+        void normalize(void) {
+            Float32 s = square_root(x * x + y * y);
+            if(s != 0.0f) {
+                s = 1.0f / s;
+                x *= s;
+                y *= s;
+            }
+        }
+
+        Float32 x = 0.0f;
+        Float32 y = 0.0f;
     };
 }
 

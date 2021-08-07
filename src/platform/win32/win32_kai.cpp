@@ -51,35 +51,23 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
         case WM_DESTROY:
             PostQuitMessage(0);
             break;
+        case WM_LBUTTONUP:
         case WM_LBUTTONDOWN:
-            set_mouse_button(kai::MouseButton::left, true, false);
+            set_mouse_button(kai::MouseButton::left, message == WM_LBUTTONDOWN);
             break;
+        case WM_MBUTTONUP:
         case WM_MBUTTONDOWN:
-            set_mouse_button(kai::MouseButton::middle, true, false);
+            set_mouse_button(kai::MouseButton::middle, message == WM_MBUTTONDOWN);
             break;
+        case WM_RBUTTONUP:
         case WM_RBUTTONDOWN:
-            set_mouse_button(kai::MouseButton::right, true, false);
+            set_mouse_button(kai::MouseButton::right, message == WM_RBUTTONDOWN);
             break;
+        case WM_XBUTTONUP:
         case WM_XBUTTONDOWN: {
             kai::MouseButton b;
             if(get_xbutton(b)) {
-                set_mouse_button(b, true, false);
-            }
-            break;
-        }
-        case WM_LBUTTONDBLCLK:
-            set_mouse_button(kai::MouseButton::left, true, true);
-            break;
-        case WM_MBUTTONDBLCLK:
-            set_mouse_button(kai::MouseButton::middle, true, true);
-            break;
-        case WM_RBUTTONDBLCLK:
-            set_mouse_button(kai::MouseButton::right, true, true);
-            break;
-        case WM_XBUTTONDBLCLK: {
-            kai::MouseButton b;
-            if(get_xbutton(b)) {
-                set_mouse_button(b, true, true);
+                set_mouse_button(b, message == WM_XBUTTONDOWN);
             }
             break;
         }
@@ -133,6 +121,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
 
     WIN32_CHECK_ERROR(win32_state.window, L"Could not create window!\n");
 
+    win32_init_gamepads();
     init_engine();
 
     MSG message;
@@ -150,12 +139,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         }
 
         win32_poll_keyboard_input();
+        win32_update_gamepads();
 
         tick_engine();
     }
 
 exit_engine:
     destroy_engine();
+    win32_destroy_gamepads();
     DestroyWindow(win32_state.window);
 
     return 0;

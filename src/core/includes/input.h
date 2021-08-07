@@ -140,7 +140,6 @@ namespace kai {
     bool mouse_up(MouseButton button);
     bool mouse_click(MouseButton button);
     bool mouse_release(MouseButton button);
-    bool mouse_double_click(MouseButton button);
     void get_rel_mouse_pos(Int32 &x, Int32 &y);
     Int32 get_scroll_delta(void);
 
@@ -163,15 +162,21 @@ namespace kai {
         dpad_right
     };
 
+    enum class RumbleMotor : Uint32 {
+        left,
+        right,
+        both
+    };
+
     bool gamepad_down(GamepadButton button, Uint32 controller = 0);
     bool gamepad_up(GamepadButton button, Uint32 controller = 0);
     bool gamepad_press(GamepadButton button, Uint32 controller = 0);
     bool gamepad_release(GamepadButton button, Uint32 controller = 0);
-    kai::Vec2 gamepad_get_left_stick_pos(Uint32 controller = 0);
-    kai::Vec2 gamepad_get_right_stick_pos(Uint32 controller = 0);
+    kai::Vec2 gamepad_left_stick_pos(Uint32 controller = 0);
+    kai::Vec2 gamepad_right_stick_pos(Uint32 controller = 0);
     Float32 gamepad_left_trigger(Uint32 controller = 0);
     Float32 gamepad_right_trigger(Uint32 controller = 0);
-    void gamepad_set_rumble_intensity(Float32 value, Uint32 controller = 0);
+    void gamepad_set_rumble_intensity(Float32 value, RumbleMotor motor, Uint32 controller = 0);
 }
 
 #endif /* KAI_INPUT_H */

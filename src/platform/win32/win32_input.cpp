@@ -8,6 +8,10 @@
 #include "win32_kai.h"
 #include "../platform.h"
 
+#include <xinput.h>
+#include <limits.h>
+#include <objbase.h>
+
 kai::Key win32_get_kai_key_from_scancode(UINT win_scancode) {
 #define MAP_TO_KAI_KEY(value, kai_key) case value: return kai::Key::kai_key
 
@@ -79,7 +83,6 @@ kai::Key win32_get_kai_key_from_scancode(UINT win_scancode) {
         MAP_TO_KAI_KEY(0x58, f12);
         MAP_TO_KAI_KEY(0x54, print_screen);
         MAP_TO_KAI_KEY(0x46, scroll_lock);
-        MAP_TO_KAI_KEY(0x45, pause);
         MAP_TO_KAI_KEY(0x37, num_multiply);
         MAP_TO_KAI_KEY(0x4a, num_minus);
         MAP_TO_KAI_KEY(0x4e, num_plus);
@@ -97,9 +100,8 @@ kai::Key win32_get_kai_key_from_scancode(UINT win_scancode) {
         MAP_TO_KAI_KEY(0x1d, left_control);
         MAP_TO_KAI_KEY(0x2a, left_shift);
         MAP_TO_KAI_KEY(0x38, left_alt);
-        MAP_TO_KAI_KEY(0x5b, left_gui);
         MAP_TO_KAI_KEY(0x36, right_shift);
-        MAP_TO_KAI_KEY(0x5c, right_gui);
+        MAP_TO_KAI_KEY(0xe11d, pause);
 
         // 'Extended' keys
         MAP_TO_KAI_KEY(0xe052, insert);
@@ -116,6 +118,8 @@ kai::Key win32_get_kai_key_from_scancode(UINT win_scancode) {
         MAP_TO_KAI_KEY(0xe035, num_divide);
         MAP_TO_KAI_KEY(0xe01d, right_control);
         MAP_TO_KAI_KEY(0xe038, right_alt);
+        MAP_TO_KAI_KEY(0xe05b, left_gui);
+        MAP_TO_KAI_KEY(0xe05c, right_gui);
         // NOTE: kai::Key::num_enter isn't mapped on Windows, because MapVirtualKey doesn't distinguish between it and return/enter
     }
 
@@ -130,12 +134,12 @@ static const UINT win32_vkeys[] = {
     'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
     'U', 'V', 'W', 'X', 'Y', 'Z',
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, // 0 - 9
-    VK_RETURN, VK_ESCAPE, VK_TAB, VK_SPACE, VK_OEM_MINUS, VK_OEM_PLUS,
+    VK_RETURN, VK_ESCAPE, VK_BACK, VK_TAB, VK_SPACE, VK_OEM_MINUS, VK_OEM_PLUS,
     VK_OEM_1, VK_OEM_2, VK_OEM_3, VK_OEM_4, VK_OEM_5, VK_OEM_6, VK_OEM_7,
-    VK_OEM_PERIOD, VK_CAPITAL,
+    VK_OEM_COMMA, VK_OEM_PERIOD, VK_CAPITAL,
     VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_F10,
     VK_F11, VK_F12,
-    VK_PRINT, VK_SCROLL, VK_PAUSE, VK_INSERT, VK_HOME, VK_PRIOR, VK_DELETE,
+    VK_SNAPSHOT, VK_SCROLL, VK_PAUSE, VK_INSERT, VK_HOME, VK_PRIOR, VK_DELETE,
     VK_END, VK_NEXT, VK_RIGHT, VK_LEFT, VK_DOWN, VK_UP,
     VK_NUMLOCK, VK_DIVIDE, VK_MULTIPLY, VK_SUBTRACT, VK_ADD, VK_DECIMAL,
     VK_NUMPAD0, VK_NUMPAD1, VK_NUMPAD2, VK_NUMPAD3, VK_NUMPAD4,
@@ -161,7 +165,8 @@ void win32_poll_keyboard_input(void) {
                 case VK_DOWN:
                 case VK_UP:
                 case VK_NUMLOCK:
-                case VK_RMENU:
+                case VK_LWIN:
+                case VK_RWIN:
                     scancode |= 0xe000;
                     break;
                 default:
@@ -173,6 +178,133 @@ void win32_poll_keyboard_input(void) {
     }
 }
 
+typedef DWORD (*XInputGetStateProc)(DWORD, XINPUT_STATE *);
+static DWORD get_state_stub(DWORD, XINPUT_STATE *) { return ERROR_DEVICE_NOT_CONNECTED; }
+
+typedef DWORD (*XInputSetStateProc)(DWORD, XINPUT_VIBRATION *);
+static DWORD set_state_stub(DWORD, XINPUT_VIBRATION *) { return ERROR_DEVICE_NOT_CONNECTED; }
+
+static struct {
+    HMODULE dll;
+    XInputGetStateProc get_state;
+    XInputSetStateProc set_state;
+} xinput_manager = {
+    nullptr,
+    get_state_stub,
+    set_state_stub
+};
+
+void win32_init_gamepads(void) {
+    if(!xinput_manager.dll) {
+        CoInitialize(nullptr);
+        xinput_manager.dll = LoadLibraryW(L"XINPUT1_4.dll");
+
+        if(!xinput_manager.dll) {
+            xinput_manager.dll = LoadLibraryW(L"XINPUT1_3.dll");
+        }
+
+        if(!xinput_manager.dll) {
+            xinput_manager.dll = LoadLibraryW(L"XINPUT9_1_0.dll");
+        }
+    }
+
+    if(xinput_manager.dll) {
+        XInputGetStateProc get_state = reinterpret_cast<XInputGetStateProc>(GetProcAddress(xinput_manager.dll, "XInputGetState"));
+        xinput_manager.get_state = (get_state) ? get_state : get_state_stub;
+
+        XInputSetStateProc set_state = reinterpret_cast<XInputSetStateProc>(GetProcAddress(xinput_manager.dll, "XInputSetState"));
+        xinput_manager.set_state = (set_state) ? set_state : set_state_stub;
+    }
+}
+
+void win32_destroy_gamepads(void) {
+    for(Uint32 i = 0; i < KAI_MAX_GAMEPADS; i++) {
+        kai::gamepad_set_rumble_intensity(0.0f, kai::RumbleMotor::both, i);
+    }
+
+    if(xinput_manager.dll) {
+        FreeLibrary(xinput_manager.dll);
+    }
+
+    xinput_manager.dll = nullptr;
+    xinput_manager.get_state = get_state_stub;
+    xinput_manager.set_state = set_state_stub;
+}
+
+void win32_update_gamepads(void) {
+    Uint32 gamepad_count = kai::min(KAI_MAX_GAMEPADS, XUSER_MAX_COUNT);
+
+    for(Uint32 id = 0; id < gamepad_count; id++) {
+        XINPUT_STATE state = {};
+
+        if(xinput_manager.get_state(id, &state) == ERROR_SUCCESS) {
+#define XINPUT_BUTTON_MAPPING(xbtn, kai_btn) \
+            if(state.Gamepad.wButtons & xbtn) \
+                set_gamepad_button(id, kai::GamepadButton::kai_btn, true) \
+
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_DPAD_UP, dpad_up);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_DPAD_DOWN, dpad_down);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_DPAD_LEFT, dpad_left);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_DPAD_RIGHT, dpad_right);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_START, start);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_BACK, back);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_LEFT_THUMB, left_stick);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_RIGHT_THUMB, right_stick);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_LEFT_SHOULDER, left_bumper);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_RIGHT_SHOULDER, right_bumper);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_A, a);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_B, b);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_X, x);
+            XINPUT_BUTTON_MAPPING(XINPUT_GAMEPAD_Y, y);
+
+            constexpr Float32 trigger_byte_count = static_cast<Float32>(UCHAR_MAX);
+
+            if(state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD) {
+                set_gamepad_button(id, kai::GamepadButton::left_trigger, true);
+                set_gamepad_trigger_analog(id, kai::GamepadButton::left_trigger,
+                                           static_cast<Float32>(state.Gamepad.bLeftTrigger) / trigger_byte_count);
+            } else {
+                set_gamepad_trigger_analog(id, kai::GamepadButton::left_trigger, 0.0f);
+            }
+
+            if(state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD) {
+                set_gamepad_button(id, kai::GamepadButton::right_trigger, true);
+                set_gamepad_trigger_analog(id, kai::GamepadButton::right_trigger,
+                                           static_cast<Float32>(state.Gamepad.bRightTrigger) / trigger_byte_count);
+            } else {
+                set_gamepad_trigger_analog(id, kai::GamepadButton::right_trigger, 0.0f);
+            }
+
+            kai::Vec2 analog;
+#define XINPUT_ANALOG_MAPPING(val, dead_zone, axis) \
+            do { \
+                Float32 max_val = 1.0f; \
+                Float32 v = 0.0f; \
+                if(val > dead_zone) { \
+                    v = static_cast<Float32>(val - dead_zone); \
+                    max_val = 1.0f / static_cast<Float32>(SHRT_MAX - dead_zone); \
+                } else if(val < -dead_zone) { \
+                    v = static_cast<Float32>(val + dead_zone); \
+                    max_val = -(1.0f / static_cast<Float32>(SHRT_MIN + dead_zone)); \
+                } \
+                analog.axis = v * max_val; \
+            } while(0)
+
+            XINPUT_ANALOG_MAPPING(state.Gamepad.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, x);
+            XINPUT_ANALOG_MAPPING(state.Gamepad.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, y);
+            set_gamepad_analog_axis(id, kai::GamepadButton::left_stick, analog);
+
+            analog = kai::Vec2();
+
+            XINPUT_ANALOG_MAPPING(state.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, x);
+            XINPUT_ANALOG_MAPPING(state.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, y);
+            set_gamepad_analog_axis(id, kai::GamepadButton::right_stick, analog);
+
+#undef XINPUT_ANALOG_MAPPING
+        }
+    }
+}
+
 void platform_get_rel_mouse_pos(Int32 &x, Int32 &y) {
     POINT point;
     GetCursorPos(&point);
@@ -180,4 +312,14 @@ void platform_get_rel_mouse_pos(Int32 &x, Int32 &y) {
 
     x = point.x;
     y = point.y;
+}
+
+void platform_set_rumble_intensity(Float32 left_motor, Float32 right_motor, Uint32 controller) {
+    constexpr Float32 max_val = static_cast<Float32>(USHRT_MAX);
+
+    XINPUT_VIBRATION vib = {};
+    vib.wLeftMotorSpeed = static_cast<WORD>(left_motor * max_val);
+    vib.wRightMotorSpeed = static_cast<WORD>(right_motor * max_val);
+
+    xinput_manager.set_state(controller, &vib);
 }
