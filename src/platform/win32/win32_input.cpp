@@ -282,12 +282,12 @@ void win32_update_gamepads(void) {
                 Float32 v = 0.0f; \
                 if(val > dead_zone) { \
                     v = static_cast<Float32>(val - dead_zone); \
-                    max_val = 1.0f / static_cast<Float32>(SHRT_MAX - dead_zone); \
+                    max_val = static_cast<Float32>(SHRT_MAX - dead_zone); \
                 } else if(val < -dead_zone) { \
                     v = static_cast<Float32>(val + dead_zone); \
-                    max_val = -(1.0f / static_cast<Float32>(SHRT_MIN + dead_zone)); \
+                    max_val = -(static_cast<Float32>(SHRT_MIN + dead_zone)); \
                 } \
-                analog.axis = v * max_val; \
+                analog.axis = v / max_val; \
             } while(0)
 
             XINPUT_ANALOG_MAPPING(state.Gamepad.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, x);
