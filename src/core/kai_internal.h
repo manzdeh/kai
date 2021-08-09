@@ -7,7 +7,7 @@
 #define KAI_ENGINE_INTERNAL_H
 
 void init_engine(void);
-void tick_engine(void);
+bool tick_engine(void);
 void destroy_engine(void);
 
 #endif /* KAI_ENGINE_INTERNAL_H */

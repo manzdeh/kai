@@ -10,6 +10,7 @@
 
 #include "win32_kai.h"
 
+#include "../../core/includes/kai.h"
 #include "../../core/input_internal.h"
 #include "../platform.h"
 
@@ -30,6 +31,7 @@
 
 static struct {
     HWND window;
+    HMODULE game_dll;
 } win32_state;
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
@@ -125,11 +127,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     init_engine();
 
     MSG message;
-    for(;;) {
+    bool running = true;
+    while(running) {
         while(PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != 0) {
             switch(message.message) {
                 case WM_QUIT:
-                    goto exit_engine;
+                    running = false;
+                    break;
                 default:
                     break;
             }
@@ -141,11 +145,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         win32_poll_keyboard_input();
         win32_update_gamepads();
 
-        tick_engine();
+        running &= tick_engine();
     }
 
-exit_engine:
     destroy_engine();
+
+    if(win32_state.game_dll) {
+        FreeLibrary(win32_state.game_dll);
+    }
+
     win32_destroy_gamepads();
     DestroyWindow(win32_state.window);
 
@@ -175,4 +183,30 @@ size_t platform_get_page_size(void) {
     GetSystemInfo(&sys);
 
     return (size_t)sys.dwPageSize;
+}
+
+bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks) {
+    if(!win32_state.game_dll) {
+        win32_state.game_dll = LoadLibraryW(L"game.dll");
+    }
+
+    if(win32_state.game_dll) {
+        auto load_proc = [dll = win32_state.game_dll](const char *name, void **callback_func) {
+            FARPROC proc = GetProcAddress(dll, name);
+            if(proc) {
+                *callback_func = proc;
+                return true;
+            }
+
+            return false;
+        };
+
+        bool retval = load_proc(KAI_TOKEN_TO_STRING(KAI_GAME_INIT_PROCNAME), reinterpret_cast<void **>(&callbacks.init));
+        retval &= load_proc(KAI_TOKEN_TO_STRING(KAI_GAME_UPDATE_PROCNAME), reinterpret_cast<void **>(&callbacks.update));
+        retval &= load_proc(KAI_TOKEN_TO_STRING(KAI_GAME_DESTROY_PROCNAME), reinterpret_cast<void **>(&callbacks.destroy));
+
+        return retval;
+    }
+
+    return false;
 }

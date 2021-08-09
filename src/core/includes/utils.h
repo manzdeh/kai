@@ -11,16 +11,20 @@
 
 #include "types.h"
 
-#define KAI_ASSERT(expr) assert(expr)
-#define KAI_IGNORED_VARIABLE(v) (void)v
-
 #ifdef KAI_PLATFORM_WIN32
 #define KAI_FORCEINLINE __forceinline
 #else
 #define KAI_FORCEINLINE inline
 #endif
 
+#define KAI_ASSERT(expr) assert(expr)
+
+#define KAI_IGNORED_VARIABLE(v) (void)v
+
 #define KAI_ARRAY_COUNT(a) (sizeof(a) / sizeof((a)[0]))
+
+#define KAI_TOKEN_TO_STRING_HELPER(tok) #tok
+#define KAI_TOKEN_TO_STRING(tok) KAI_TOKEN_TO_STRING_HELPER(tok)
 
 namespace kai {
     constexpr Uint64 kibibytes(Uint64 value) {
