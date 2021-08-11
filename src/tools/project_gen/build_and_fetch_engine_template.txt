@@ -1,0 +1,12 @@
+@echo off
+
+SET GAME_DIR=%CD%
+
+pushd ..\kai
+
+call build.bat
+xcopy /y src\core\includes %GAME_DIR%\src\kai
+copy /b/y bin\kai.lib %GAME_DIR%
+copy /b/y bin\kai.exe %GAME_DIR%
+
+popd

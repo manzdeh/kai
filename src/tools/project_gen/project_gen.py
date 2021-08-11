@@ -11,24 +11,28 @@ def create_cpp_file(path):
         main_file.write("KAI_GAME_DESTROY {\n}".encode("ascii"))
 
 if __name__ == "__main__":
-    print("Kai Game project generation\n")
+    print("Kai game project generator\n")
 
-    project_name = input("Project Name: ")
+    project_name = input("Project name: ")
     project_name = re.sub("[^A-Za-z0-9]+", "_", project_name)
 
     print("Generating a project with name: {}".format(project_name))
 
-    game_project_dir = input("Parent directory for {}: ".format(project_name))
-    game_project_dir = "{}/{}".format(game_project_dir, project_name)
+    project_dir = input("Parent directory for {}: ".format(project_name))
+    project_dir = "{}/{}".format(project_dir, project_name)
     try:
-        os.mkdir(game_project_dir)
+        os.mkdir(project_dir)
     except OSError:
-        print("Failed to create directory {}. Aborting...".format(game_project_dir))
+        print("Failed to create directory {}. Aborting...".format(project_dir))
         sys.exit(-1)
 
-    game_src_dir = "{}/src".format(game_project_dir)
-    os.mkdir(game_src_dir)
+    src_dir = "{}/src".format(project_dir)
+    os.mkdir(src_dir)
 
-    shutil.copytree("../../core/includes", "{}/kai".format(game_src_dir))
+    shutil.copytree("../../core/includes", "{}/kai".format(src_dir))
+    shutil.copyfile("build_template.txt", "{}/build.bat".format(project_dir))
+    shutil.copyfile("build_and_fetch_engine_template.txt", "{}/build_and_fetch_engine.bat".format(project_dir))
+    shutil.copyfile("../../../bin/kai.exe", "{}/kai.exe".format(project_dir))
+    shutil.copyfile("../../../bin/kai.lib", "{}/kai.lib".format(project_dir))
 
-    create_cpp_file(game_src_dir)
+    create_cpp_file(src_dir)

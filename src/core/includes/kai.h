@@ -8,12 +8,9 @@
 
 #include "alloc.h"
 #include "input.h"
+#include "math.h"
 #include "types.h"
 #include "utils.h"
-
-#ifdef KAI_PLATFORM_WIN32
-#define KAI_API __declspec(dllexport)
-#endif
 
 // All of the required callbacks have the same signature
 #define KAI_GAME_CALLBACK_FUNC(name) void (name)(void)

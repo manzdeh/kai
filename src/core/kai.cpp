@@ -20,7 +20,7 @@ static DEF_STUB_FUNC(KAI_GAME_DESTROY_PROCNAME) {}
 static struct {
     kai::GameCallbacks callbacks;
 } game_manager = {
-    // NOTE: The order needs to be the same as in the GameCallbacks struct
+    // NOTE: The order needs to be the same as in the GameCallbacks struct.
     // C99's designated initializers are available in C++20, but the codebase
     // won't target that (maybe at a later date)
     STUB_NAME(KAI_GAME_INIT_PROCNAME),
@@ -44,6 +44,12 @@ void init_engine(void) {
 
 bool tick_engine(void) {
     game_manager.callbacks.update();
+
+#ifdef KAI_DEBUG
+    if(kai::key_down(kai::Key::escape)) {
+        return false;
+    }
+#endif
 
     swap_input_buffers();
     return true; // TODO: Always returns true for now. Eventually we need to check if the game has sent a quit request

@@ -7,7 +7,6 @@
 #define KAI_MATH_H
 
 #include "types.h"
-#include "utils.h"
 
 #include <math.h>
 

@@ -12,7 +12,10 @@
 #include "types.h"
 
 #ifdef KAI_PLATFORM_WIN32
+
+#define KAI_API __declspec(dllexport)
 #define KAI_FORCEINLINE __forceinline
+
 #else
 #define KAI_FORCEINLINE inline
 #endif
@@ -55,7 +58,6 @@ namespace kai {
         alignment--;
         value = (value + alignment) & ~alignment;
     }
-
 }
 
 #endif /* KAI_UTILS_H */

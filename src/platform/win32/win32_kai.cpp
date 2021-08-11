@@ -186,9 +186,10 @@ size_t platform_get_page_size(void) {
 }
 
 bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks) {
-    if(!win32_state.game_dll) {
-        win32_state.game_dll = LoadLibraryW(L"game.dll");
+    if(win32_state.game_dll) {
     }
+
+    win32_state.game_dll = LoadLibraryW(L"game.dll");
 
     if(win32_state.game_dll) {
         auto load_proc = [dll = win32_state.game_dll](const char *name, void **callback_func) {

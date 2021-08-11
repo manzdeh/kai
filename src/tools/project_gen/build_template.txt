@@ -1,0 +1,15 @@
+@echo off
+
+IF NOT EXIST bin mkdir bin
+
+SET DLLNAME=game.dll
+SET COMPILER_FLAGS=/nologo /Od /MTd /Zi /Gm- /EHa- /W4 /wd4201 /LD
+SET DEFINES=/DKAI_PLATFORM_WIN32 /DKAI_DEBUG /DDEBUG /D_DEBUG /DUNICODE /D_UNICODE
+SET LINKER_FLAGS=/INCREMENTAL:NO /DLL /OUT:%DLLNAME% /LIBPATH:%CD%
+SET LIBRARIES=kernel32.lib user32.lib kai.lib
+
+pushd bin
+cl %DEFINES% %COMPILER_FLAGS% ..\src\main.cpp %LIBRARIES% /link %LINKER_FLAGS%
+del main.lib main.exp
+copy /b/y %DLLNAME% ..\
+popd

@@ -8,6 +8,7 @@
 
 #include "math.h"
 #include "types.h"
+#include "utils.h"
 
 #define KAI_MAX_GAMEPADS 4
 
@@ -121,10 +122,10 @@ namespace kai {
         count
     };
 
-    bool key_down(Key key);
-    bool key_up(Key key);
-    bool key_press(Key key);
-    bool key_release(Key key);
+    KAI_API bool key_down(Key key);
+    KAI_API bool key_up(Key key);
+    KAI_API bool key_press(Key key);
+    KAI_API bool key_release(Key key);
 
     enum class MouseButton : Uint32 {
         left,
@@ -136,12 +137,12 @@ namespace kai {
         count
     };
 
-    bool mouse_down(MouseButton button);
-    bool mouse_up(MouseButton button);
-    bool mouse_click(MouseButton button);
-    bool mouse_release(MouseButton button);
-    void get_rel_mouse_pos(Int32 &x, Int32 &y);
-    Int32 get_scroll_delta(void);
+    KAI_API bool mouse_down(MouseButton button);
+    KAI_API bool mouse_up(MouseButton button);
+    KAI_API bool mouse_click(MouseButton button);
+    KAI_API bool mouse_release(MouseButton button);
+    KAI_API void get_rel_mouse_pos(Int32 &x, Int32 &y);
+    KAI_API Int32 get_scroll_delta(void);
 
     enum class GamepadButton : Uint32 {
         a,
@@ -168,15 +169,15 @@ namespace kai {
         both
     };
 
-    bool gamepad_down(GamepadButton button, Uint32 controller = 0);
-    bool gamepad_up(GamepadButton button, Uint32 controller = 0);
-    bool gamepad_press(GamepadButton button, Uint32 controller = 0);
-    bool gamepad_release(GamepadButton button, Uint32 controller = 0);
-    kai::Vec2 gamepad_left_stick_pos(Uint32 controller = 0);
-    kai::Vec2 gamepad_right_stick_pos(Uint32 controller = 0);
-    Float32 gamepad_left_trigger(Uint32 controller = 0);
-    Float32 gamepad_right_trigger(Uint32 controller = 0);
-    void gamepad_set_rumble_intensity(Float32 value, RumbleMotor motor, Uint32 controller = 0);
+    KAI_API bool gamepad_down(GamepadButton button, Uint32 controller = 0);
+    KAI_API bool gamepad_up(GamepadButton button, Uint32 controller = 0);
+    KAI_API bool gamepad_press(GamepadButton button, Uint32 controller = 0);
+    KAI_API bool gamepad_release(GamepadButton button, Uint32 controller = 0);
+    KAI_API kai::Vec2 gamepad_left_stick_pos(Uint32 controller = 0);
+    KAI_API kai::Vec2 gamepad_right_stick_pos(Uint32 controller = 0);
+    KAI_API Float32 gamepad_left_trigger(Uint32 controller = 0);
+    KAI_API Float32 gamepad_right_trigger(Uint32 controller = 0);
+    KAI_API void gamepad_set_rumble_intensity(Float32 value, RumbleMotor motor, Uint32 controller = 0);
 }
 
 #endif /* KAI_INPUT_H */
