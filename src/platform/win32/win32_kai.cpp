@@ -15,6 +15,7 @@
 #include "../platform.h"
 
 #include "../../core/kai.cpp"
+#include "win32_dx11.cpp"
 #include "win32_input.cpp"
 
 // NOTE: Temporary
@@ -124,6 +125,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     WIN32_CHECK_ERROR(win32_state.window, L"Could not create window!\n");
 
     win32_init_gamepads();
+    init_dx11(win32_state.window, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
     init_engine();
 
     MSG message;
