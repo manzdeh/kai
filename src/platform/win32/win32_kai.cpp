@@ -6,6 +6,7 @@
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "win32_kai.h"
@@ -34,6 +35,12 @@ static struct {
     HWND window;
     HMODULE game_dll;
 } win32_state;
+
+void win32_kai_log(const char *str, va_list vlist) {
+    static char buf[999];
+    vsnprintf(buf, sizeof(buf), str, vlist);
+    OutputDebugStringA(buf);
+}
 
 LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
@@ -127,6 +134,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     win32_init_gamepads();
     init_dx11(win32_state.window, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
     init_engine();
+
+    set_log_callback(win32_kai_log);
 
     MSG message;
     bool running = true;

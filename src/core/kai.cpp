@@ -3,6 +3,8 @@
  * See LICENSE for details
  **************************************************/
 
+#include <stdio.h>
+
 #include "includes/kai.h"
 #include "kai_internal.h"
 
@@ -32,6 +34,8 @@ static struct {
 #undef STUB_NAME
 #undef STUB_NAME_HELPER
 
+static KaiLogProc log_func = nullptr;
+
 void init_engine(void) {
     MemoryManager::init(kai::gibibytes(4));
     init_input();
@@ -58,4 +62,24 @@ bool tick_engine(void) {
 void destroy_engine(void) {
     game_manager.callbacks.destroy();
     MemoryManager::destroy();
+}
+
+void set_log_callback(KaiLogProc func) {
+    log_func = func;
+}
+
+static void log_impl(const char *str, va_list vlist) {
+    static char buf[999];
+    vsnprintf(buf, sizeof(buf), str, vlist);
+    printf(buf);
+}
+
+void kai::log(const char *str, ...) {
+    va_list vlist;
+    va_start(vlist, str);
+
+    log_func ? log_func(str, vlist) :
+        log_impl(str, vlist);
+
+    va_end(vlist);
 }

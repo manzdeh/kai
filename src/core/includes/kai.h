@@ -27,12 +27,16 @@ typedef KAI_GAME_CALLBACK_FUNC(*KaiGameInitProc);
 typedef KAI_GAME_CALLBACK_FUNC(*KaiGameUpdateProc);
 typedef KAI_GAME_CALLBACK_FUNC(*KaiGameDestroyProc);
 
+typedef void (*KaiLogProc)(const char *str, va_list vlist);
+
 namespace kai {
     struct GameCallbacks {
         KaiGameInitProc init;
         KaiGameUpdateProc update;
         KaiGameDestroyProc destroy;
     };
+
+    void log(const char *str, ...);
 }
 
 #endif /* KAI_ENGINE_H */
