@@ -94,7 +94,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(WNDCLASSEXW);
-    window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+    window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance;
     window_class.hIcon = LoadIconW(nullptr, IDI_APPLICATION);

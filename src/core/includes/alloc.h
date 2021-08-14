@@ -29,7 +29,7 @@ namespace kai {
     typedef Uint32 StackMarker;
 
     struct StackAllocator {
-        KAI_API explicit StackAllocator(Uint32 bytes, Bool32 aligned_allocs = true); // NOTE: Allocators are limited to 4GB
+        KAI_API StackAllocator(Uint32 bytes, Bool32 aligned_allocs = true); // NOTE: Allocators are limited to 4GB
 
         KAI_API void destroy(void);
 
