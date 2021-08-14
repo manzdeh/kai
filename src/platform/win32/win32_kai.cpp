@@ -151,6 +151,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     }
 
     destroy_engine();
+    destroy_dx11();
 
     if(win32_state.game_dll) {
         FreeLibrary(win32_state.game_dll);
