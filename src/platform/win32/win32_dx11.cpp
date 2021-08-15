@@ -282,7 +282,6 @@ void destroy_dx11(void) {
     }
 
     DESTROY_IF_NEEDED(device);
-    DESTROY_IF_NEEDED(device);
     DESTROY_IF_NEEDED(context);
     DESTROY_IF_NEEDED(swap_chain);
     DESTROY_IF_NEEDED(rtv);

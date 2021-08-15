@@ -33,12 +33,36 @@ namespace kai {
         rhs = temp;
     }
 
+    constexpr Float32 pi(void) {
+        return 3.14159265359f;
+    }
+
+    constexpr Float32 pi2(void) {
+        return 6.28318530718f;
+    }
+
+    constexpr Float32 deg_to_rad(Float32 deg) {
+        return (deg * pi()) / 180.0f;
+    }
+
+    constexpr Float32 rad_to_deg(Float32 rad) {
+        return (rad / pi()) * 180.0f;
+    }
+
     bool nearly_equal(Float32 a, Float32 b) {
         return abs(a - b) <= FLT_EPSILON;
     }
 
     Float32 square_root(Float32 value) {
         return sqrtf(value);
+    }
+
+    Float32 cosine(Float32 angle) {
+        return cosf(angle);
+    }
+
+    Float32 sine(Float32 angle) {
+        return sinf(angle);
     }
 
     template<typename T>
@@ -107,6 +131,10 @@ namespace kai {
     struct Vec4 {
         Vec4() = default;
         Vec4(Float32 x, Float32 y = 0.0f, Float32 z = 0.0f, Float32 w = 0.0f) : x(x), y(y), z(z), w(w) {}
+
+        static Vec4 up(void) {
+            return { 0.0f, 1.0f, 0.0f, 0.0f };
+        }
 
         bool operator==(const Vec4 &rhs) const {
             return nearly_equal(x, rhs.x) && nearly_equal(y, rhs.y) &&
@@ -182,19 +210,99 @@ namespace kai {
     }
 
     union Mat4x4 {
-        Mat4x4() {
-            memset(m, 0, sizeof(m));
+        // Matrices need to be provided in row-major order. This makes the
+        // interface more straightforward to use. Internally they're
+        // stored in column-major order to avoid having to transpose them
+        // before sending them to the GPU.
+        static Mat4x4 init_from_buffer(const Float32 *buffer) {
+            return {
+                buffer[0], buffer[1], buffer[2], buffer[3],
+                buffer[4], buffer[5], buffer[6], buffer[7],
+                buffer[8], buffer[9], buffer[10], buffer[11],
+                buffer[12], buffer[13], buffer[14], buffer[15]
+            };
         }
 
-        // Matrices need to be provided in row-major order. This makes the
-        // interface more straightforward to use, but internally they're
-        // stored in column-major order to avoid having to transpose them
-        // when they're uploaded to the GPU.
-        Mat4x4(const Float32 *buffer) {
-            m00 = buffer[0]; m10 = buffer[1]; m20 = buffer[2]; m30 = buffer[3];
-            m01 = buffer[4]; m11 = buffer[5]; m21 = buffer[6]; m31 = buffer[7];
-            m02 = buffer[8]; m12 = buffer[9]; m22 = buffer[10]; m32 = buffer[11];
-            m03 = buffer[12]; m13 = buffer[13]; m23 = buffer[14]; m33 = buffer[15];
+        static Mat4x4 identity(void) {
+            return {
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            };
+        }
+
+        static Mat4x4 scale(Float32 x = 1.0f, Float32 y = 1.0f, Float32 z = 1.0f) {
+            return {
+                   x, 0.0f, 0.0f, 0.0f,
+                0.0f,    y, 0.0f, 0.0f,
+                0.0f, 0.0f,    z, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            };
+        }
+
+        static Mat4x4 translate(Float32 x = 0.0f, Float32 y = 0.0f, Float32 z = 0.0f) {
+            return {
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                   x,    y,    z, 1.0f
+            };
+        }
+
+        static Mat4x4 rotate_x(Float32 angle) {
+            Float32 c = cosine(angle);
+            Float32 s = sine(angle);
+
+            return {
+                1.0f, 0.0f, 0.0f, 0.0f ,
+                0.0f,    c,    s, 0.0f,
+                0.0f,   -s,    c, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            };
+        }
+
+        static Mat4x4 rotate_y(Float32 angle) {
+            Float32 c = cosine(angle);
+            Float32 s = sine(angle);
+
+            return {
+                   c, 0.0f,   -s, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                   s, 0.0f,    c, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            };
+        }
+
+        static Mat4x4 rotate_z(Float32 angle) {
+            Float32 c = cosine(angle);
+            Float32 s = sine(angle);
+
+            return {
+                   c,    s, 0.0f, 0.0f,
+                  -s,    c, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            };
+        }
+
+        static Mat4x4 look_at_rh(const Vec4 &eye, const Vec4 &target, const Vec4 &up = Vec4::up()) {
+            Vec4 f = eye - target;
+            f.normalize();
+
+            Vec4 u = up;
+            u.normalize();
+            Vec4 s = kai::cross(u, f);
+            s.normalize();
+
+            u = cross(f, s);
+
+            return {
+                             s.x,                u.x,               f.x, 0.0f,
+                             s.y,                u.y,               f.y, 0.0f,
+                             s.z,                u.z,               f.z, 0.0f,
+                -kai::dot(s, eye), -kai::dot(u, eye), -kai::dot(f, eye), 1.0f
+            };
         }
 
         void transpose(void) {
@@ -204,16 +312,6 @@ namespace kai {
             swap(m12, m21);
             swap(m13, m31);
             swap(m23, m32);
-        }
-
-        static Mat4x4 identity(void) {
-            static const Float32 buf[] = {
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            };
-            return Mat4x4(buf);
         }
 
         struct {
@@ -228,8 +326,8 @@ namespace kai {
     Mat4x4 operator*(const Mat4x4 &a, const Mat4x4 &b) {
         Mat4x4 m;
 
-        for(int i = 0; i < 4; i++) {
-            for(int j = 0; j < 4; j++) {
+        for(Int32 i = 0; i < 4; i++) {
+            for(Int32 j = 0; j < 4; j++) {
                 m.m[i][j] =
                     a.m[0][j] * b.m[i][0] +
                     a.m[1][j] * b.m[i][1] +
