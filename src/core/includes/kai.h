@@ -9,6 +9,7 @@
 #include "alloc.h"
 #include "input.h"
 #include "math.h"
+#include "render.h"
 #include "types.h"
 #include "utils.h"
 
