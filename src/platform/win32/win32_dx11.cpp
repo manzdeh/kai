@@ -4,6 +4,8 @@
  **************************************************/
 
 #include "win32_dx11.h"
+#include "../platform.h"
+
 #include <d3d11.h>
 #include <dxgi.h>
 #include <d3dcompiler.h>
@@ -13,16 +15,71 @@
 #define VENDOR_ID_INTEL     0x8086
 
 static struct {
+    IDXGIFactory *factory;
     ID3D11Device *device;
     ID3D11DeviceContext *context;
     IDXGISwapChain *swap_chain;
     ID3D11RenderTargetView *rtv;
     ID3D11DepthStencilView *dsv;
+
+    DX11Renderer renderer;
 } dx11_state;
 
+// At the moment and for the forseeable future the DX11 backend is the only
+// one that'll exist, so we don't even bother checking the parameter
+void * platform_get_backend_renderer(kai::RenderingBackend) {
+    return &dx11_state.renderer;
+}
+
+static bool create_dx11_device(IDXGIAdapter *adapter = nullptr) {
+    UINT flags = 0;
+#ifdef KAI_DEBUG
+    flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+    D3D_FEATURE_LEVEL levels[] = {
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0
+    };
+
+    return D3D11CreateDevice(adapter,
+                             adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
+                             nullptr,
+                             flags,
+                             levels,
+                             KAI_ARRAY_COUNT(levels),
+                             D3D11_SDK_VERSION,
+                             &dx11_state.device,
+                             nullptr,
+                             &dx11_state.context) == S_OK;
+}
+
+void DX11Renderer::init_default_device(kai::RenderDevice &device) {
+    if(!dx11_state.device && create_dx11_device()) {
+        IDXGIDevice *dxgi_device;
+        IDXGIAdapter *adapter;
+        dx11_state.device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgi_device));
+
+        DXGI_ADAPTER_DESC desc;
+        dxgi_device->GetAdapter(&adapter);
+        adapter->GetDesc(&desc);
+
+        device.id = desc.DeviceId;
+        device.backend = kai::RenderingBackend::dx11;
+
+        adapter->Release();
+        dxgi_device->Release();
+    }
+}
+
+void DX11Renderer::init_device(kai::RenderDevice &, Uint32) {
+}
+
 void init_dx11(HWND window, Uint32 width, Uint32 height) {
-    IDXGIFactory *factory;
-    if(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory)) == S_OK) {
+    if(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&dx11_state.factory)) == S_OK) {
+        // TODO: Temporarily commented this out, because it needs to be split up now that
+        // device creation isn't done here anymore
+#if 0
         IDXGIAdapter *adapter = nullptr;
         IDXGIAdapter *best_adapter = nullptr;
 
@@ -48,34 +105,10 @@ void init_dx11(HWND window, Uint32 width, Uint32 height) {
             adapter->Release();
         }
 
-        UINT flags = 0;
-#ifdef KAI_DEBUG
-        flags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-        D3D_FEATURE_LEVEL levels[] = {
-            D3D_FEATURE_LEVEL_11_1,
-            D3D_FEATURE_LEVEL_11_0
-        };
-
-        D3D_FEATURE_LEVEL set_level;
-
-        if(D3D11CreateDevice(best_adapter,
-                             best_adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
-                             nullptr,
-                             flags,
-                             levels,
-                             KAI_ARRAY_COUNT(levels),
-                             D3D11_SDK_VERSION,
-                             &dx11_state.device,
-                             &set_level,
-                             &dx11_state.context) != S_OK) {
-            OutputDebugStringW(L"Error creating DX11 device!\n");
-        }
-
         if(best_adapter) {
             best_adapter->Release();
         }
+#endif
 
         DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
         swap_chain_desc.BufferDesc.Width = width;
@@ -93,7 +126,7 @@ void init_dx11(HWND window, Uint32 width, Uint32 height) {
         swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
         swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-        if(factory->CreateSwapChain(dx11_state.device, &swap_chain_desc, &dx11_state.swap_chain) != S_OK) {
+        if(dx11_state.factory->CreateSwapChain(dx11_state.device, &swap_chain_desc, &dx11_state.swap_chain) != S_OK) {
             OutputDebugStringW(L"Error creating swap chain!\n");
         }
 
@@ -269,8 +302,6 @@ void init_dx11(HWND window, Uint32 width, Uint32 height) {
             pixel_buffer->Release();
             vertex_data->Release();
         }
-
-        factory->Release();
     }
 }
 
@@ -281,6 +312,7 @@ void destroy_dx11(void) {
         dx11_state.item = nullptr; \
     }
 
+    DESTROY_IF_NEEDED(factory);
     DESTROY_IF_NEEDED(device);
     DESTROY_IF_NEEDED(context);
     DESTROY_IF_NEEDED(swap_chain);

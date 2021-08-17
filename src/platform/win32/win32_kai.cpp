@@ -132,8 +132,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     WIN32_CHECK_ERROR(win32_state.window, L"Could not create window!\n");
 
     win32_init_gamepads();
-    init_dx11(win32_state.window, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
     init_engine();
+    init_dx11(win32_state.window, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
 
     set_log_callback(win32_kai_log);
 

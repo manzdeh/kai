@@ -12,9 +12,15 @@ namespace kai {
     typedef Uint32 VertexShaderID;
     typedef Uint32 PixelShaderID;
 
+    enum class RenderingBackend {
+        unknown,
+        dx11,
+    };
+
     struct RenderDevice {
         Uint32 id;
-        const char name[64];
+        RenderingBackend backend;
+        char name[64];
     };
 
     struct RenderBuffer {

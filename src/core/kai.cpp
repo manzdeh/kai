@@ -10,6 +10,7 @@
 
 #include "alloc.cpp"
 #include "input.cpp"
+#include "render.cpp"
 
 #define STUB_NAME_HELPER(name) name##_stub
 #define STUB_NAME(name) STUB_NAME_HELPER(name)
@@ -39,6 +40,10 @@ static KaiLogProc log_func = nullptr;
 void init_engine(void) {
     MemoryManager::init(kai::gibibytes(4));
     init_input();
+
+    kai::RenderDevice device;
+    init_renderer(device, kai::RenderingBackend::dx11);
+    kai::init_default_device(device);
 
     // TODO: Log an error if the required callbacks haven't been found on the game's side
     platform_setup_game_callbacks(game_manager.callbacks);
