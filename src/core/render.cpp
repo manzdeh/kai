@@ -45,8 +45,16 @@ void init_renderer(kai::RenderDevice &device, kai::RenderingBackend backend) {
     }
 }
 
-void kai::init_default_device(RenderDevice &device) {
-    RENDERER_FUNC(init_default_device, device);
+kai::Window * kai::get_window(void) {
+    return platform_get_kai_window();
+}
+
+void kai::init_default_device(RenderDevice &out_device) {
+    RENDERER_FUNC(init_default_device, out_device);
+}
+
+void kai::init_device(RenderDevice &out_device, Uint32 id) {
+    RENDERER_FUNC(init_device, out_device, id);
 }
 
 #undef RENDERER_CASE

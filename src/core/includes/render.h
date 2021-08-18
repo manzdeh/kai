@@ -12,6 +12,12 @@ namespace kai {
     typedef Uint32 VertexShaderID;
     typedef Uint32 PixelShaderID;
 
+    struct Window {
+        void *platform_window;
+        Uint32 width;
+        Uint32 height;
+    };
+
     enum class RenderingBackend {
         unknown,
         dx11,
@@ -33,8 +39,10 @@ namespace kai {
         PixelShaderID pixel_shader;
     };
 
-    void init_default_device(RenderDevice &device);
-    void init_device(RenderDevice &device, Uint32 id);
+    Window * get_window(void);
+
+    void init_default_device(RenderDevice &out_device);
+    void init_device(RenderDevice &out_device, Uint32 id);
 }
 
 #endif /* KAI_RENDER_H */

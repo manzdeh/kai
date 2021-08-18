@@ -10,7 +10,7 @@
 
 #include "../../core/includes/kai.h"
 
-void init_dx11(HWND window, Uint32 width, Uint32 height);
+void init_dx11(void);
 void destroy_dx11(void);
 
 #endif /* KAI_WIN32_DX11_H */

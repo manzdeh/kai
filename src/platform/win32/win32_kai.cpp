@@ -32,7 +32,7 @@
     } while(0)
 
 static struct {
-    HWND window;
+    kai::Window window;
     HMODULE game_dll;
 } win32_state;
 
@@ -116,24 +116,30 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     DWORD window_flags = WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SIZEBOX | WS_SYSMENU | WS_VISIBLE;
     AdjustWindowRectEx(&client_rect, window_flags, FALSE, 0);
 
-    win32_state.window = CreateWindowExW(0,
-                                         window_class.lpszClassName,
-                                         L"Kai Engine",
-                                         window_flags,
-                                         CW_USEDEFAULT,
-                                         CW_USEDEFAULT,
-                                         client_rect.right - client_rect.left,
-                                         client_rect.bottom - client_rect.top,
-                                         nullptr,
-                                         nullptr,
-                                         instance,
-                                         nullptr);
+    HWND window = CreateWindowExW(0,
+                                  window_class.lpszClassName,
+                                  L"Kai Engine",
+                                  window_flags,
+                                  CW_USEDEFAULT,
+                                  CW_USEDEFAULT,
+                                  client_rect.right - client_rect.left,
+                                  client_rect.bottom - client_rect.top,
+                                  nullptr,
+                                  nullptr,
+                                  instance,
+                                  nullptr);
 
-    WIN32_CHECK_ERROR(win32_state.window, L"Could not create window!\n");
+    WIN32_CHECK_ERROR(window, L"Could not create window!\n");
+
+    GetClientRect(window, &client_rect);
+
+    win32_state.window.platform_window = window;
+    win32_state.window.width = client_rect.right;
+    win32_state.window.height = client_rect.bottom;
 
     win32_init_gamepads();
+    init_dx11();
     init_engine();
-    init_dx11(win32_state.window, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
 
     set_log_callback(win32_kai_log);
 
@@ -167,13 +173,17 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     }
 
     win32_destroy_gamepads();
-    DestroyWindow(win32_state.window);
+    DestroyWindow(win32_get_window());
 
     return 0;
 }
 
+kai::Window * platform_get_kai_window(void) {
+    return &win32_state.window;
+}
+
 HWND win32_get_window(void) {
-    return win32_state.window;
+    return static_cast<HWND>(win32_state.window.platform_window);
 }
 
 void * platform_alloc_mem_arena(size_t bytes, void *address) {
