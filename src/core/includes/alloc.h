@@ -12,11 +12,13 @@
 struct MemoryManager;
 namespace kai {
     struct StackAllocator;
+    struct PoolAllocator;
 }
 
 struct MemoryHandle {
     friend struct MemoryManager;
     friend struct kai::StackAllocator;
+    friend struct kai::PoolAllocator;
 
 private:
     Uint64 get_size(void) const;
@@ -33,11 +35,11 @@ namespace kai {
 
         KAI_API void destroy(void);
 
-        KAI_API void * alloc(Uint32 bytes, StackMarker *out_marker = nullptr);
+        KAI_API void * alloc(Uint32 elem_size, StackMarker *out_marker = nullptr, Uint32 elem_count = 1);
 
         template<typename T>
         T * alloc(StackMarker *out_marker = nullptr, Uint32 elem_count = 1) {
-            return (T *)alloc(sizeof(T) * elem_count, out_marker);
+            return (T *)alloc(sizeof(T), out_marker, elem_count);
         }
 
         KAI_API void free(StackMarker marker);
@@ -51,6 +53,29 @@ namespace kai {
         MemoryHandle handle;
         StackMarker current_marker = 0;
         Bool32 should_align = true;
+    };
+
+    struct PoolAllocator {
+        KAI_API PoolAllocator(Uint32 elem_size, Uint32 count);
+
+        KAI_API void destroy(void);
+
+        KAI_API void * alloc(void);
+        KAI_API void free(void *address);
+
+        KAI_API void clear(void);
+
+        void * operator[](size_t index);
+
+    private:
+        struct PoolNode {
+            PoolNode *next;
+        };
+
+        MemoryHandle handle;
+        PoolNode *head = nullptr;
+        Uint32 element_count;
+        Uint32 chunk_size;
     };
 }
 

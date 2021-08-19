@@ -165,7 +165,8 @@ void kai::StackAllocator::destroy(void) {
     memset(this, 0, sizeof(*this));
 }
 
-void * kai::StackAllocator::alloc(Uint32 bytes, StackMarker *out_marker) {
+void * kai::StackAllocator::alloc(Uint32 elem_size, StackMarker *out_marker, Uint32 elem_count) {
+    Uint32 bytes = elem_size * elem_count;
     void *address = nullptr;
 
     if(bytes > 0) {
@@ -202,6 +203,57 @@ void kai::StackAllocator::free(StackMarker marker) {
 
 void kai::StackAllocator::clear(void) {
     current_marker = 0;
+}
+
+// -------------------------------------------------- Pool Allocator --------------------------------------------------
+kai::PoolAllocator::PoolAllocator(Uint32 elem_size, Uint32 count) :
+    element_count(count),
+    chunk_size(elem_size) {
+
+    KAI_ASSERT(elem_size >= sizeof(PoolNode *) && count > 1);
+
+    size_t bytes_needed = (elem_size + sizeof(PoolNode *)) * count;
+
+    if(MemoryManager::reserve_blocks(handle, bytes_needed)) {
+        clear();
+    } else {
+        // TODO: Error logging
+    }
+}
+
+void kai::PoolAllocator::destroy(void) {
+    MemoryManager::free_blocks(handle);
+    memset(this, 0, sizeof(*this));
+}
+
+void * kai::PoolAllocator::alloc(void) {
+    // TODO: Implement me
+    return nullptr;
+}
+
+void kai::PoolAllocator::free(void *address) {
+    // TODO: Implement me
+}
+
+void kai::PoolAllocator::clear(void) {
+    memset(MemoryManager::get_ptr(handle), 0, handle.get_size());
+
+    // Set all the nodes in the free-list
+    head = reinterpret_cast<PoolNode *>(MemoryManager::get_ptr(handle));
+    PoolNode *node = head;
+    uintptr_t next = reinterpret_cast<uintptr_t>(head);
+    for(Uint32 i = 0; i < (element_count - 1); i++) {
+        next += (chunk_size + sizeof(PoolNode *));
+
+        PoolNode *p = reinterpret_cast<PoolNode *>(next);
+        node->next = p;
+        node = p;
+    }
+}
+
+void * kai::PoolAllocator::operator[](size_t index) {
+    // TODO: Implement me
+    return nullptr;
 }
 
 #undef BLOCK_SIZE
