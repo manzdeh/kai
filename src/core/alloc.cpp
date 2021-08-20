@@ -227,12 +227,20 @@ void kai::PoolAllocator::destroy(void) {
 }
 
 void * kai::PoolAllocator::alloc(void) {
-    // TODO: Implement me
+    if(head) {
+        void *addr = head + 1;
+        head = head->next;
+        return addr;
+    }
+
+    // TODO: Log an error that we ran out of space in this allocator
     return nullptr;
 }
 
 void kai::PoolAllocator::free(void *address) {
-    // TODO: Implement me
+    PoolNode *header = reinterpret_cast<PoolNode *>(static_cast<unsigned char *>(address) - sizeof(PoolNode *));
+    header->next = head;
+    head = header;
 }
 
 void kai::PoolAllocator::clear(void) {
@@ -249,11 +257,8 @@ void kai::PoolAllocator::clear(void) {
         node->next = p;
         node = p;
     }
-}
 
-void * kai::PoolAllocator::operator[](size_t index) {
-    // TODO: Implement me
-    return nullptr;
+    node->next = nullptr;
 }
 
 #undef BLOCK_SIZE

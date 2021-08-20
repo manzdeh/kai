@@ -65,8 +65,6 @@ namespace kai {
 
         KAI_API void clear(void);
 
-        void * operator[](size_t index);
-
     private:
         struct PoolNode {
             PoolNode *next;
