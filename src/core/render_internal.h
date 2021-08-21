@@ -3,23 +3,22 @@
  * See LICENSE for details
  **************************************************/
 
-#include "includes/render.h"
-#include "includes/types.h"
-
 #ifndef KAI_RENDER_INTERNAL_H
 #define KAI_RENDER_INTERNAL_H
 
-#define BACKEND_RENDERER(name) struct name { \
-    void init_default_device(kai::RenderDevice &device); \
-    void init_device(kai::RenderDevice &device, Uint32 id); \
-}
-
-// The rendering backends are not created through an abstract interface,
-// because a rendering backend is only set up once upon application
-// initialization and can't be changed during runtime. So we wouldn't gain
-// much from dynamic dispatch
-BACKEND_RENDERER(DX11Renderer);
+#include "includes/render.h"
+#include "includes/types.h"
 
 void init_renderer(kai::RenderDevice &device, kai::RenderingBackend backend);
+
+#define DEFINE_RENDERER_BACKEND(backend_name) struct backend_name : public kai::Renderer { \
+    void init_default_device(kai::RenderDevice &out_device) override; \
+    void init_device(kai::RenderDevice &out_device, Uint32 id) override; \
+    void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) override; \
+    bool compile_shader(const char *shader_stream, kai::ShaderType type, \
+                        const char *entry, void *out_id, void **blob = nullptr) const override; \
+    bool create_render_pipeline(const kai::RenderPipelineInfo &info, const kai::RenderInputLayoutInfo *input_layouts, \
+                                Uint32 input_layout_count, kai::RenderPipeline &out_pipeline); \
+}
 
 #endif /* KAI_RENDER_INTERNAL_H */

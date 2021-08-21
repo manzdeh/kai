@@ -13,4 +13,6 @@
 void init_dx11(void);
 void destroy_dx11(void);
 
+DEFINE_RENDERER_BACKEND(DX11Renderer);
+
 #endif /* KAI_WIN32_DX11_H */

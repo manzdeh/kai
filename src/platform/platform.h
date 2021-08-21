@@ -20,7 +20,7 @@ void platform_set_rumble_intensity(Float32 left_motor, Float32 right_motor, Uint
 
 bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks);
 
-void * platform_get_backend_renderer(kai::RenderingBackend backend);
+kai::Renderer * platform_get_backend_renderer(kai::RenderingBackend backend);
 kai::Window * platform_get_kai_window(void);
 
 #endif /* KAI_PLATFORM_H */

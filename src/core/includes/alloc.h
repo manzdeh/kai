@@ -39,7 +39,7 @@ namespace kai {
 
         template<typename T>
         T * alloc(StackMarker *out_marker = nullptr, Uint32 elem_count = 1) {
-            return (T *)alloc(sizeof(T), out_marker, elem_count);
+            return static_cast<T *>(alloc(sizeof(T), out_marker, elem_count));
         }
 
         KAI_API void free(StackMarker marker);
