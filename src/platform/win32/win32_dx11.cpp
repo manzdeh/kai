@@ -26,13 +26,7 @@ static struct {
     DX11Renderer renderer;
 } dx11_state;
 
-// At the moment and for the forseeable future the DX11 backend is the only
-// one that'll exist, so we don't even bother checking the parameter
-kai::Renderer * platform_get_backend_renderer(kai::RenderingBackend) {
-    return &dx11_state.renderer;
-}
-
-static void init_dx11_state(void) {
+static void dx11_state_setup(DX11Renderer &renderer) {
     kai::Window *window = kai::get_window();
 
     DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
@@ -125,8 +119,7 @@ static void init_dx11_state(void) {
             "}"
         };
 
-        kai::Renderer *renderer = kai::get_renderer();
-        renderer->set_viewport(0, 0);
+        renderer.set_viewport(0, 0);
 
         kai::RenderPipelineInfo pipeline_info = {};
         pipeline_info.vertex_shader_source = vshader;
@@ -143,11 +136,11 @@ static void init_dx11_state(void) {
         input_info.format = kai::RenderFormat::rgb_f32;
 
         kai::RenderPipeline pipeline;
-        renderer->create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
+        renderer.create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
     }
 }
 
-static bool create_dx11_device(IDXGIAdapter *adapter = nullptr) {
+static bool create_dx11_device(DX11Renderer &dx11_renderer, IDXGIAdapter *adapter = nullptr) {
     UINT flags = 0;
 #ifdef KAI_DEBUG
     flags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -170,14 +163,24 @@ static bool create_dx11_device(IDXGIAdapter *adapter = nullptr) {
                                      &dx11_state.context) == S_OK;
 
     if(success) {
-        init_dx11_state();
+        dx11_state_setup(dx11_renderer);
     }
 
     return success;
 }
 
-void DX11Renderer::init_default_device(kai::RenderDevice &device) {
-    if(!dx11_state.device && create_dx11_device()) {
+static KAI_FORCEINLINE void set_device_properties(DX11Renderer &device, const DXGI_ADAPTER_DESC &desc) {
+    device.id = desc.DeviceId;
+    device.backend = kai::RenderingBackend::dx11;
+    WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS | WC_COMPOSITECHECK | WC_DEFAULTCHAR,
+                        desc.Description, -1, device.name, sizeof(device.name), nullptr, nullptr);
+}
+
+kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator) {
+    kai::StackMarker marker;
+    DX11Renderer *device = allocator.alloc<DX11Renderer, DX11Renderer>(&marker);
+
+    if(!dx11_state.device && create_dx11_device(*device)) {
         IDXGIDevice *dxgi_device;
         IDXGIAdapter *adapter;
         dx11_state.device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgi_device));
@@ -186,29 +189,37 @@ void DX11Renderer::init_default_device(kai::RenderDevice &device) {
         dxgi_device->GetAdapter(&adapter);
         adapter->GetDesc(&desc);
 
-        device.id = desc.DeviceId;
-        device.backend = kai::RenderingBackend::dx11;
-        WideCharToMultiByte(CP_UTF8, WC_NO_BEST_FIT_CHARS | WC_COMPOSITECHECK | WC_DEFAULTCHAR,
-                            desc.Description, -1, device.name, sizeof(device.name), nullptr, nullptr);
+        set_device_properties(*device, desc);
 
         adapter->Release();
         dxgi_device->Release();
+
+        return device;
     }
+
+    if(device) {
+        allocator.free(marker);
+    }
+
+    return nullptr;
 }
 
-void DX11Renderer::init_device(kai::RenderDevice &device, Uint32 id) {
+kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator, Uint32 id) {
     if(!dx11_state.device) {
         IDXGIAdapter *adapter = nullptr;
+
+        kai::StackMarker marker;
+        DX11Renderer *device = allocator.alloc<DX11Renderer, DX11Renderer>(&marker);
 
         bool created_device = false;
 
         Uint32 i = 0;
+        DXGI_ADAPTER_DESC desc;
         for(; dx11_state.factory->EnumAdapters(i, &adapter) == S_OK; i++) {
-            DXGI_ADAPTER_DESC desc;
             adapter->GetDesc(&desc);
 
             if(desc.DeviceId == id) {
-                created_device = create_dx11_device(adapter);
+                created_device = create_dx11_device(*device, adapter);
                 break;
             }
 
@@ -220,12 +231,16 @@ void DX11Renderer::init_device(kai::RenderDevice &device, Uint32 id) {
         }
 
         if(created_device) {
-            device.id = id;
-            device.backend = kai::RenderingBackend::dx11;
+            set_device_properties(*device, desc);
         } else {
-            init_default_device(device);
+            allocator.free(marker);
+            return platform_renderer_init_device(allocator);
         }
+
+        return device;
     }
+
+    return nullptr;
 }
 
 void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) {
@@ -245,7 +260,7 @@ void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) {
 }
 
 bool DX11Renderer::compile_shader(const char *shader_stream, kai::ShaderType type,
-                                  const char *entry, void *out_id, void **blob) const {
+                                  const char *entry, void *out_id, void **bytecode) const {
     ID3DBlob *buffer = nullptr;
     ID3DBlob *error = nullptr;
     UINT compile_flags = D3DCOMPILE_PACK_MATRIX_COLUMN_MAJOR;
@@ -297,8 +312,8 @@ bool DX11Renderer::compile_shader(const char *shader_stream, kai::ShaderType typ
         }
     }
 
-    if(blob && type == kai::ShaderType::vertex) {
-        *blob = buffer;
+    if(bytecode && type == kai::ShaderType::vertex) {
+        *bytecode = buffer;
     } else {
         buffer->Release();
     }
@@ -352,9 +367,9 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
     rasterizer_state->Release();
 
 
-    ID3DBlob *vertex_shader_buffer;
+    ID3DBlob *vs_bytecode;
     if(!compile_shader(info.vertex_shader_source, kai::ShaderType::vertex, info.vertex_shader_entry,
-                      &out_pipeline.vertex_shader, reinterpret_cast<void **>(&vertex_shader_buffer))) {
+                      &out_pipeline.vertex_shader, reinterpret_cast<void **>(&vs_bytecode))) {
         kai::log("Vertex shader compilation failed!\n");
         return false;
     }
@@ -379,10 +394,10 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
     }
 
     ID3D11InputLayout *input_layout;
-    dx11_state.device->CreateInputLayout(input_descs, input_layout_count, vertex_shader_buffer->GetBufferPointer(),
-                                         vertex_shader_buffer->GetBufferSize(), &input_layout);
+    dx11_state.device->CreateInputLayout(input_descs, input_layout_count, vs_bytecode->GetBufferPointer(),
+                                         vs_bytecode->GetBufferSize(), &input_layout);
 
-    vertex_shader_buffer->Release();
+    vs_bytecode->Release();
 
     D3D11_PRIMITIVE_TOPOLOGY topology = [topology = info.topology]() {
         switch(topology) {
@@ -430,7 +445,8 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
 }
 
 void init_dx11(void) {
-    if(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&dx11_state.factory)) != S_OK) {
+    if(!dx11_state.factory &&
+       CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&dx11_state.factory)) != S_OK) {
         kai::log("Error: failed creating the IDXGIFactory!\n");
     }
 }

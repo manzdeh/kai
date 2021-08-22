@@ -31,6 +31,8 @@ static struct {
     STUB_NAME(KAI_GAME_DESTROY_PROCNAME)
 };
 
+static kai::StackAllocator engine_memory;
+
 #undef DEF_STUB_FUNC
 #undef STUB_NAME
 #undef STUB_NAME_HELPER
@@ -39,11 +41,10 @@ static KaiLogProc log_func = nullptr;
 
 void init_engine(void) {
     MemoryManager::init(kai::gibibytes(4));
+    engine_memory = kai::StackAllocator(static_cast<Uint32>(kai::mebibytes(64)));
     init_input();
 
-    kai::RenderDevice device;
-    init_renderer(device, kai::RenderingBackend::dx11);
-    kai::get_renderer()->init_default_device(device);
+    init_renderer(kai::RenderingBackend::dx11);
 
     // TODO: Log an error if the required callbacks haven't been found on the game's side
     platform_setup_game_callbacks(game_manager.callbacks);
@@ -66,11 +67,16 @@ bool tick_engine(void) {
 
 void destroy_engine(void) {
     game_manager.callbacks.destroy();
+    engine_memory.destroy();
     MemoryManager::destroy();
 }
 
 void set_log_callback(KaiLogProc func) {
     log_func = func;
+}
+
+kai::StackAllocator * get_engine_memory(void) {
+    return &engine_memory;
 }
 
 static void log_impl(const char *str, va_list vlist) {

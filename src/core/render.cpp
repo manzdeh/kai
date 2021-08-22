@@ -6,19 +6,11 @@
 #include "includes/render.h"
 #include "render_internal.h"
 
-static struct {
-    kai::Renderer *renderer;
-    kai::RenderingBackend active_backend;
-} render_manager = {};
-
-void init_renderer(kai::RenderDevice &device, kai::RenderingBackend backend) {
-    device.backend = backend;
-    render_manager.active_backend = backend;
-
+void init_renderer(kai::RenderingBackend backend) {
     switch(backend) {
         case kai::RenderingBackend::dx11:
 #ifdef KAI_PLATFORM_WIN32
-            render_manager.renderer = platform_get_backend_renderer(backend);
+            platform_renderer_init_backend(backend);
 #else
             kai::log("Direct3D11 is not supported on this platform!\n");
 #endif
@@ -28,10 +20,14 @@ void init_renderer(kai::RenderDevice &device, kai::RenderingBackend backend) {
     }
 }
 
-kai::Window * kai::get_window(void) {
-    return platform_get_kai_window();
+kai::RenderDevice * kai::RenderDevice::init_device(void) {
+    return  platform_renderer_init_device(*get_engine_memory());
 }
 
-kai::Renderer * kai::get_renderer(void) {
-    return render_manager.renderer;
+kai::RenderDevice * kai::RenderDevice::init_device(Uint32 id) {
+    return platform_renderer_init_device(*get_engine_memory(), id);
+}
+
+kai::Window * kai::get_window(void) {
+    return platform_get_kai_window();
 }

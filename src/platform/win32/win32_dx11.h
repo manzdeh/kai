@@ -13,6 +13,14 @@
 void init_dx11(void);
 void destroy_dx11(void);
 
-DEFINE_RENDERER_BACKEND(DX11Renderer);
+struct DX11Renderer : public kai::RenderDevice {
+    DX11Renderer() = default;
+
+    void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) override;
+    bool compile_shader(const char *shader_stream, kai::ShaderType type,
+                        const char *entry, void *out_id, void **bytecode = nullptr) const override;
+    bool create_render_pipeline(const kai::RenderPipelineInfo &info, const kai::RenderInputLayoutInfo *input_layouts,
+                                Uint32 input_layout_count, kai::RenderPipeline &out_pipeline);
+};
 
 #endif /* KAI_WIN32_DX11_H */

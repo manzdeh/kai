@@ -14,4 +14,6 @@ void destroy_engine(void);
 
 void set_log_callback(KaiLogProc func);
 
+kai::StackAllocator * get_engine_memory(void);
+
 #endif /* KAI_ENGINE_INTERNAL_H */

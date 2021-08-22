@@ -83,29 +83,26 @@ namespace kai {
         PixelShaderID pixel_shader;
     };
 
+    // Abstraction for both the GPU and rendering API
     struct RenderDevice {
-        Uint32 id;
-        RenderingBackend backend;
-        char name[128] = {}; // TODO: Change to UTF-8 string once that is implemented
-    };
-
-    struct Renderer {
-        virtual void init_default_device(RenderDevice &out_device) = 0;
-        virtual void init_device(RenderDevice &out_device, Uint32 id) = 0;
+        static RenderDevice * init_device(void);
+        static RenderDevice * init_device(Uint32 id);
 
         // A width/height of 0 simply means that it'll use the window's width/height
         virtual void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) = 0;
 
         virtual bool compile_shader(const char *shader_stream, ShaderType type,
-                                    const char *entry, void *out_id, void **blob = nullptr) const = 0;
+                                    const char *entry, void *out_id, void **bytecode = nullptr) const = 0;
 
         virtual bool create_render_pipeline(const RenderPipelineInfo &info, const RenderInputLayoutInfo *input_layouts,
                                             Uint32 input_layout_count, RenderPipeline &out_pipeline) = 0;
 
+        Uint32 id;
+        RenderingBackend backend;
+        char name[128] = {}; // TODO: Change to UTF-8 string once that is implemented
     };
 
     KAI_API Window * get_window(void);
-    KAI_API Renderer * get_renderer(void);
 }
 
 #endif /* KAI_RENDER_H */

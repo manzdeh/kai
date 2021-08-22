@@ -9,6 +9,9 @@
 #include "types.h"
 #include "utils.h"
 
+#include <new>
+#include <utility>
+
 struct MemoryManager;
 namespace kai {
     struct StackAllocator;
@@ -31,6 +34,7 @@ namespace kai {
     typedef Uint32 StackMarker;
 
     struct StackAllocator {
+        KAI_API StackAllocator() = default;
         KAI_API StackAllocator(Uint32 bytes, Bool32 aligned_allocs = true); // NOTE: Allocators are limited to 4GB
 
         KAI_API void destroy(void);
@@ -40,6 +44,13 @@ namespace kai {
         template<typename T>
         T * alloc(StackMarker *out_marker = nullptr, Uint32 elem_count = 1) {
             return static_cast<T *>(alloc(sizeof(T), out_marker, elem_count));
+        }
+
+        template<typename T, typename U, typename ...ARGS>
+        T * alloc(StackMarker *out_marker = nullptr, Uint32 elem_count = 1, ARGS &&...args) {
+            T *obj = alloc<T>(out_marker, elem_count);
+            new(obj) U(std::forward<ARGS>(args)...);
+            return obj;
         }
 
         KAI_API void free(StackMarker marker);

@@ -34,7 +34,8 @@
 static struct {
     kai::Window window;
     HMODULE game_dll;
-} win32_state;
+    Bool32 rendering_backend_initialized;
+} win32_state = {};
 
 void win32_kai_log(const char *str, va_list vlist) {
     static char buf[999];
@@ -138,7 +139,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     win32_state.window.height = client_rect.bottom;
 
     win32_init_gamepads();
-    init_dx11();
     init_engine();
 
     set_log_callback(win32_kai_log);
@@ -232,4 +232,13 @@ bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks) {
     }
 
     return false;
+}
+
+// At the moment and for the forseeable future the DX11 backend is the only
+// one that'll exist, so we don't even bother checking the parameter
+void platform_renderer_init_backend(kai::RenderingBackend) {
+    if(!win32_state.rendering_backend_initialized) {
+        init_dx11();
+        win32_state.rendering_backend_initialized = true;
+    }
 }
