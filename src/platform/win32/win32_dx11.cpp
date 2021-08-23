@@ -142,8 +142,6 @@ static void dx11_state_setup(DX11Renderer &renderer) {
         kai::RenderPipeline pipeline;
         renderer.create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
         renderer.set_render_pipeline(pipeline);
-
-        renderer.destroy_render_pipeline(pipeline);
     }
 }
 
