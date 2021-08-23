@@ -11,9 +11,12 @@
 #include <d3dcompiler.h>
 #include <malloc.h>
 
-#define VENDOR_ID_NVIDIA    0x10de
-#define VENDOR_ID_AMD       0x1002
-#define VENDOR_ID_INTEL     0x8086
+#define RENDER_PIPELINE_COUNT 32
+struct DX11RenderPipeline {
+    ID3D11RasterizerState *rasterizer_state;
+    ID3D11InputLayout *input_layout;
+    D3D11_PRIMITIVE_TOPOLOGY topology;
+};
 
 static struct {
     IDXGIFactory *factory;
@@ -24,6 +27,7 @@ static struct {
     ID3D11DepthStencilView *dsv;
 
     DX11Renderer renderer;
+    kai::PoolAllocator pipelines_pool;
 } dx11_state;
 
 static void dx11_state_setup(DX11Renderer &renderer) {
@@ -137,6 +141,9 @@ static void dx11_state_setup(DX11Renderer &renderer) {
 
         kai::RenderPipeline pipeline;
         renderer.create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
+        renderer.set_render_pipeline(pipeline);
+
+        renderer.destroy_render_pipeline(pipeline);
     }
 }
 
@@ -243,7 +250,7 @@ kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator
     return nullptr;
 }
 
-void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) {
+void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) const {
     kai::Window *window = kai::get_window();
     width = (width > 0) ? width : window->width;
     height = (height > 0) ? height : window->height;
@@ -336,7 +343,15 @@ static KAI_FORCEINLINE DXGI_FORMAT get_dxgi_format(kai::RenderFormat format) {
 }
 
 bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, const kai::RenderInputLayoutInfo *input_layouts,
-                                          Uint32 input_layout_count, kai::RenderPipeline &out_pipeline) {
+                                          Uint32 input_layout_count, kai::RenderPipeline &out_pipeline) const {
+
+    DX11RenderPipeline *dx11_pipeline = static_cast<DX11RenderPipeline *>(dx11_state.pipelines_pool.alloc());
+
+    if(!dx11_pipeline) {
+        kai::log("Could not create a new render pipeline object!\n");
+        return false;
+    }
+
     D3D11_RASTERIZER_DESC rasterizer_desc = {};
     rasterizer_desc.FillMode = [fill_mode = info.fill_mode]() {
         switch(fill_mode) {
@@ -360,11 +375,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
     rasterizer_desc.MultisampleEnable = false;
     rasterizer_desc.AntialiasedLineEnable = false;
 
-    ID3D11RasterizerState *rasterizer_state;
-    dx11_state.device->CreateRasterizerState(&rasterizer_desc, &rasterizer_state);
-
-    dx11_state.context->RSSetState(rasterizer_state);
-    rasterizer_state->Release();
+    dx11_state.device->CreateRasterizerState(&rasterizer_desc, &dx11_pipeline->rasterizer_state);
 
 
     ID3DBlob *vs_bytecode;
@@ -378,6 +389,8 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         kai::log("Pixel shader compilation failed!\n");
         return false;
     }
+
+    out_pipeline.state = dx11_pipeline;
 
 
     size_t input_size = sizeof(D3D11_INPUT_ELEMENT_DESC) * input_layout_count;
@@ -393,13 +406,12 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
             input_layouts[i].offset : D3D11_INPUT_PER_VERTEX_DATA;
     }
 
-    ID3D11InputLayout *input_layout;
     dx11_state.device->CreateInputLayout(input_descs, input_layout_count, vs_bytecode->GetBufferPointer(),
-                                         vs_bytecode->GetBufferSize(), &input_layout);
+                                         vs_bytecode->GetBufferSize(), &dx11_pipeline->input_layout);
 
     vs_bytecode->Release();
 
-    D3D11_PRIMITIVE_TOPOLOGY topology = [topology = info.topology]() {
+    dx11_pipeline->topology = [topology = info.topology]() {
         switch(topology) {
             case kai::RenderPipelineInfo::TopologyType::point_list: return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
             case kai::RenderPipelineInfo::TopologyType::line_list: return D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
@@ -409,15 +421,6 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
             case kai::RenderPipelineInfo::TopologyType::undefined: default: return D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
         }
     }();
-
-    // TODO: This should happen when the RenderPipeline is set as active
-    dx11_state.context->IASetPrimitiveTopology(topology);
-    dx11_state.context->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(out_pipeline.vertex_shader), nullptr, 0);
-    dx11_state.context->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(out_pipeline.pixel_shader), nullptr, 0);
-    dx11_state.context->IASetInputLayout(input_layout);
-
-    input_layout->Release();
-
 
     // TODO: Temporary!
     static const Float32 triangle[] = {
@@ -444,10 +447,37 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
     return true;
 }
 
+void DX11Renderer::destroy_render_pipeline(kai::RenderPipeline &pipeline) {
+    DX11RenderPipeline *p = static_cast<DX11RenderPipeline *>(pipeline.state);
+
+    p->rasterizer_state->Release();
+    p->input_layout->Release();
+    reinterpret_cast<ID3D11VertexShader *>(pipeline.vertex_shader)->Release();
+    reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader)->Release();
+
+    dx11_state.pipelines_pool.free(p);
+
+    memset(&pipeline, 0, sizeof(pipeline));
+}
+
+void DX11Renderer::set_render_pipeline(const kai::RenderPipeline &pipeline) const {
+    DX11RenderPipeline *p = static_cast<DX11RenderPipeline *>(pipeline.state);
+
+    dx11_state.context->RSSetState(p->rasterizer_state);
+    dx11_state.context->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.vertex_shader), nullptr, 0);
+    dx11_state.context->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader), nullptr, 0);
+    dx11_state.context->IASetInputLayout(p->input_layout);
+    dx11_state.context->IASetPrimitiveTopology(p->topology);
+}
+
 void init_dx11(void) {
-    if(!dx11_state.factory &&
-       CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&dx11_state.factory)) != S_OK) {
-        kai::log("Error: failed creating the IDXGIFactory!\n");
+    if(!dx11_state.factory) {
+        if(CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&dx11_state.factory)) != S_OK) {
+            kai::log("Error: failed creating the IDXGIFactory!\n");
+            return;
+        }
+
+        dx11_state.pipelines_pool = kai::PoolAllocator(sizeof(DX11RenderPipeline), RENDER_PIPELINE_COUNT);
     }
 }
 
@@ -464,6 +494,8 @@ void destroy_dx11(void) {
     DESTROY_IF_NEEDED(swap_chain);
     DESTROY_IF_NEEDED(rtv);
     DESTROY_IF_NEEDED(dsv);
+
+    dx11_state.pipelines_pool.destroy();
 
 #undef DESTROY_IF_NEEDED
 }

@@ -9,6 +9,7 @@
 #include "includes/render.h"
 #include "includes/types.h"
 
-void init_renderer(kai::RenderDevice &device, kai::RenderingBackend backend);
+void init_renderer(kai::RenderingBackend backend);
+void destroy_renderer(void);
 
 #endif /* KAI_RENDER_INTERNAL_H */

@@ -7,17 +7,18 @@
 #include "render_internal.h"
 
 void init_renderer(kai::RenderingBackend backend) {
-    switch(backend) {
-        case kai::RenderingBackend::dx11:
-#ifdef KAI_PLATFORM_WIN32
-            platform_renderer_init_backend(backend);
-#else
-            kai::log("Direct3D11 is not supported on this platform!\n");
-#endif
-            break;
-        default:
-            break;
+#ifndef KAI_PLATFORM_WIN32
+    if(backend == kai::RenderingBackend::dx11) {
+        kai::log("Direct3D11 is not supported on this platform!\n");
+        return;
     }
+#endif
+
+    platform_renderer_init_backend(backend);
+}
+
+void destroy_renderer(void) {
+    platform_renderer_destroy_backend();
 }
 
 kai::RenderDevice * kai::RenderDevice::init_device(void) {

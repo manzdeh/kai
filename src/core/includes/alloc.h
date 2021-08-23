@@ -67,6 +67,7 @@ namespace kai {
     };
 
     struct PoolAllocator {
+        KAI_API PoolAllocator() = default;
         KAI_API PoolAllocator(Uint32 elem_size, Uint32 count);
 
         KAI_API void destroy(void);
@@ -83,8 +84,8 @@ namespace kai {
 
         MemoryHandle handle;
         PoolNode *head = nullptr;
-        Uint32 element_count;
-        Uint32 chunk_size;
+        Uint32 element_count = 0;
+        Uint32 chunk_size = 0;
     };
 }
 

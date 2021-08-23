@@ -138,10 +138,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     win32_state.window.width = client_rect.right;
     win32_state.window.height = client_rect.bottom;
 
-    win32_init_gamepads();
-    init_engine();
-
     set_log_callback(win32_kai_log);
+
+    win32_init_gamepads();
+
+    init_engine();
 
     MSG message;
     bool running = true;
@@ -166,7 +167,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     }
 
     destroy_engine();
-    destroy_dx11();
 
     if(win32_state.game_dll) {
         FreeLibrary(win32_state.game_dll);
@@ -209,6 +209,7 @@ size_t platform_get_page_size(void) {
 
 bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks) {
     if(win32_state.game_dll) {
+        FreeLibrary(win32_state.game_dll);
     }
 
     win32_state.game_dll = LoadLibraryW(L"game.dll");
@@ -241,4 +242,8 @@ void platform_renderer_init_backend(kai::RenderingBackend) {
         init_dx11();
         win32_state.rendering_backend_initialized = true;
     }
+}
+
+void platform_renderer_destroy_backend(void) {
+    destroy_dx11();
 }

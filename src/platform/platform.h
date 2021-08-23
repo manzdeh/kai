@@ -23,6 +23,7 @@ bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks);
 kai::Window * platform_get_kai_window(void);
 
 void platform_renderer_init_backend(kai::RenderingBackend backend);
+void platform_renderer_destroy_backend(void);
 kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator);
 kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator, Uint32 id);
 

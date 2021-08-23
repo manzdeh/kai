@@ -31,12 +31,11 @@ static struct {
     STUB_NAME(KAI_GAME_DESTROY_PROCNAME)
 };
 
-static kai::StackAllocator engine_memory;
-
 #undef DEF_STUB_FUNC
 #undef STUB_NAME
 #undef STUB_NAME_HELPER
 
+static kai::StackAllocator engine_memory;
 static KaiLogProc log_func = nullptr;
 
 void init_engine(void) {
@@ -67,6 +66,7 @@ bool tick_engine(void) {
 
 void destroy_engine(void) {
     game_manager.callbacks.destroy();
+    destroy_renderer();
     engine_memory.destroy();
     MemoryManager::destroy();
 }

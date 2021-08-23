@@ -89,13 +89,17 @@ namespace kai {
         static RenderDevice * init_device(Uint32 id);
 
         // A width/height of 0 simply means that it'll use the window's width/height
-        virtual void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) = 0;
+        virtual void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) const = 0;
 
         virtual bool compile_shader(const char *shader_stream, ShaderType type,
                                     const char *entry, void *out_id, void **bytecode = nullptr) const = 0;
 
         virtual bool create_render_pipeline(const RenderPipelineInfo &info, const RenderInputLayoutInfo *input_layouts,
-                                            Uint32 input_layout_count, RenderPipeline &out_pipeline) = 0;
+                                            Uint32 input_layout_count, RenderPipeline &out_pipeline) const = 0;
+
+        virtual void destroy_render_pipeline(RenderPipeline &pipeline) = 0;
+
+        virtual void set_render_pipeline(const RenderPipeline &pipeline) const = 0;
 
         Uint32 id;
         RenderingBackend backend;
