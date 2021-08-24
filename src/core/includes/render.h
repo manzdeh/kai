@@ -39,6 +39,41 @@ namespace kai {
         dx11,
     };
 
+    enum class RenderResourceUsage {
+        gpu_r,
+        gpu_rw,
+        cpu_w_gpu_r,
+        cpu_rw_gpu_rw,
+    };
+
+    enum class RenderCPUUsage {
+        none,
+        read,
+        write,
+        read_write,
+    };
+
+    struct RenderBufferInfo {
+        const void *data;
+        size_t byte_size;
+
+        Uint32 stride;
+
+        enum class Type {
+            vertex_buffer,
+            index_buffer,
+            constant_buffer
+        } type;
+
+        RenderCPUUsage cpu_usage;
+        RenderResourceUsage resource_usage;
+    };
+
+    struct RenderBuffer {
+        void *data;
+        Uint32 stride;
+    };
+
 #define KAI_INPUT_LAYOUT_APPEND 0xffffffff
 
     struct RenderInputLayoutInfo {
@@ -100,6 +135,10 @@ namespace kai {
         virtual void destroy_render_pipeline(RenderPipeline &pipeline) = 0;
 
         virtual void set_render_pipeline(const RenderPipeline &pipeline) const = 0;
+
+        virtual bool create_buffer(const RenderBufferInfo &info, RenderBuffer &out_buffer) const = 0;
+
+        virtual void bind_buffer(const RenderBuffer &buffer) const = 0; // TODO: Will probably be moved to be encoded in a CommandBuffer
 
         Uint32 id;
         RenderingBackend backend;

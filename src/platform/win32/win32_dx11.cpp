@@ -142,6 +142,23 @@ static void dx11_state_setup(DX11Renderer &renderer) {
         kai::RenderPipeline pipeline;
         renderer.create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
         renderer.set_render_pipeline(pipeline);
+
+        static const Float32 triangle[] = {
+            -0.5f, -0.5f, 0.0f,
+            0.5f, -0.5f, 0.0f,
+            0.0f,  0.5f, 0.0f
+        };
+
+        kai::RenderBufferInfo info = {};
+        info.data = triangle;
+        info.byte_size = sizeof(triangle);
+        info.stride = sizeof(Float32) * 3;
+        info.type = kai::RenderBufferInfo::Type::vertex_buffer;
+        info.resource_usage = kai::RenderResourceUsage::gpu_rw;
+
+        kai::RenderBuffer buffer;
+        renderer.create_buffer(info, buffer);
+        renderer.bind_buffer(buffer);
     }
 }
 
@@ -420,28 +437,6 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         }
     }();
 
-    // TODO: Temporary!
-    static const Float32 triangle[] = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f,  0.5f, 0.0f
-    };
-
-    D3D11_BUFFER_DESC bd = {};
-    bd.ByteWidth = sizeof(Float32) * KAI_ARRAY_COUNT(triangle);
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-
-    D3D11_SUBRESOURCE_DATA srd = {};
-    srd.pSysMem = triangle;
-
-    ID3D11Buffer *vertex_data;
-    dx11_state.device->CreateBuffer(&bd, &srd, &vertex_data);
-
-    Uint32 stride = sizeof(Float32) * 3;
-    Uint32 offset = 0;
-    dx11_state.context->IASetVertexBuffers(0, 1, &vertex_data, &stride, &offset);
-
     return true;
 }
 
@@ -466,6 +461,54 @@ void DX11Renderer::set_render_pipeline(const kai::RenderPipeline &pipeline) cons
     dx11_state.context->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader), nullptr, 0);
     dx11_state.context->IASetInputLayout(p->input_layout);
     dx11_state.context->IASetPrimitiveTopology(p->topology);
+}
+
+bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const {
+    D3D11_BUFFER_DESC buffer_desc = {};
+
+    buffer_desc.ByteWidth = static_cast<UINT>(info.byte_size);
+    buffer_desc.Usage = [usage = info.resource_usage]() {
+        switch(usage) {
+            case kai::RenderResourceUsage::gpu_r: return D3D11_USAGE_IMMUTABLE;
+            case kai::RenderResourceUsage::cpu_w_gpu_r: return D3D11_USAGE_DYNAMIC;
+            case kai::RenderResourceUsage::cpu_rw_gpu_rw: return D3D11_USAGE_STAGING;
+            case kai::RenderResourceUsage::gpu_rw: default: return D3D11_USAGE_DEFAULT;
+        }
+    }();
+    buffer_desc.BindFlags = [type = info.type]() {
+        switch(type) {
+            case kai::RenderBufferInfo::Type::index_buffer: return D3D11_BIND_INDEX_BUFFER;
+            case kai::RenderBufferInfo::Type::constant_buffer: return D3D11_BIND_CONSTANT_BUFFER;
+            case kai::RenderBufferInfo::Type::vertex_buffer: default: return D3D11_BIND_VERTEX_BUFFER;
+        }
+    }();
+    buffer_desc.CPUAccessFlags = [usage = info.cpu_usage]() {
+        switch(usage) {
+            case kai::RenderCPUUsage::read: return D3D11_CPU_ACCESS_READ;
+            case kai::RenderCPUUsage::write: return D3D11_CPU_ACCESS_WRITE;
+            case kai::RenderCPUUsage::read_write: return static_cast<D3D11_CPU_ACCESS_FLAG>(D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE);
+            case kai::RenderCPUUsage::none: default: return static_cast<D3D11_CPU_ACCESS_FLAG>(0);
+        }
+    }();
+
+    D3D11_SUBRESOURCE_DATA subresource = {};
+    subresource.pSysMem = info.data;
+
+    ID3D11Buffer *buffer_data;
+    if(dx11_state.device->CreateBuffer(&buffer_desc, &subresource, &buffer_data) != S_OK) {
+        return false;
+    }
+
+    out_buffer.data = buffer_data;
+    out_buffer.stride = info.stride;
+
+    return true;
+}
+
+void DX11Renderer::bind_buffer(const kai::RenderBuffer &buffer) const {
+    Uint32 stride = buffer.stride;
+    Uint32 offset = 0;
+    dx11_state.context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(buffer.data), &stride, &offset);
 }
 
 void init_dx11(void) {

@@ -44,6 +44,7 @@ void init_engine(void) {
     init_input();
 
     init_renderer(kai::RenderingBackend::dx11);
+    kai::RenderDevice::init_device(); // TODO: This should be done by the game
 
     // TODO: Log an error if the required callbacks haven't been found on the game's side
     platform_setup_game_callbacks(game_manager.callbacks);

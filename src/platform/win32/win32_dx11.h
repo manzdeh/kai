@@ -27,6 +27,10 @@ struct DX11Renderer : public kai::RenderDevice {
     void destroy_render_pipeline(kai::RenderPipeline &pipeline) override;
 
     void set_render_pipeline(const kai::RenderPipeline &pipeline) const override;
+
+    bool create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const override;
+
+    void bind_buffer(const kai::RenderBuffer &buffer) const override;
 };
 
 #endif /* KAI_WIN32_DX11_H */
