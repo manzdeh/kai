@@ -30,6 +30,8 @@ struct DX11Renderer : public kai::RenderDevice {
 
     bool create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const override;
 
+    void destroy_buffer(kai::RenderBuffer &buffer) override;
+
     void bind_buffer(const kai::RenderBuffer &buffer) const override;
 };
 

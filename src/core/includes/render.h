@@ -109,6 +109,15 @@ namespace kai {
             triangle_strip
         } topology;
 
+        Bool32 color_enable;
+        Float32 color_clear_values[4];
+
+        Bool32 depth_enable;
+        Float32 depth_clear_value;
+
+        Bool32 stencil_enable;
+        Uint32 stencil_clear_value;
+
         Bool32 front_ccw;
     };
 
@@ -116,6 +125,22 @@ namespace kai {
         void *state;
         VertexShaderID vertex_shader;
         PixelShaderID pixel_shader;
+    };
+
+    struct CommandBuffer {
+        explicit CommandBuffer(Uint32 size);
+
+        void begin(void);
+        void end(void);
+
+        void draw(Uint32 vertex_count, Uint32 starting_index = 0);
+        void bind_buffer(const RenderBuffer &buffer);
+
+        void clear_color(void);
+        void clear_depth_stencil(void);
+
+    private:
+        kai::StackAllocator allocator;
     };
 
     // Abstraction for both the GPU and rendering API
@@ -137,6 +162,8 @@ namespace kai {
         virtual void set_render_pipeline(const RenderPipeline &pipeline) const = 0;
 
         virtual bool create_buffer(const RenderBufferInfo &info, RenderBuffer &out_buffer) const = 0;
+
+        virtual void destroy_buffer(RenderBuffer &buffer) = 0;
 
         virtual void bind_buffer(const RenderBuffer &buffer) const = 0; // TODO: Will probably be moved to be encoded in a CommandBuffer
 

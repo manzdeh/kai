@@ -134,6 +134,14 @@ static void dx11_state_setup(DX11Renderer &renderer) {
         pipeline_info.cull_mode = kai::RenderPipelineInfo::CullMode::back;
         pipeline_info.topology = kai::RenderPipelineInfo::TopologyType::triangle_list;
         pipeline_info.front_ccw = true;
+        pipeline_info.color_enable = true;
+        pipeline_info.color_clear_values[0] = 1.0f;
+        pipeline_info.color_clear_values[1] = 0.0f;
+        pipeline_info.color_clear_values[2] = 0.0f;
+        pipeline_info.color_clear_values[3] = 1.0f;
+        pipeline_info.depth_enable = true;
+        pipeline_info.depth_clear_value = 1.0f;
+        pipeline_info.stencil_enable = false;
 
         kai::RenderInputLayoutInfo input_info = {};
         input_info.name = "POSITION";
@@ -503,6 +511,11 @@ bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderB
     out_buffer.stride = info.stride;
 
     return true;
+}
+
+void DX11Renderer::destroy_buffer(kai::RenderBuffer &buffer) {
+    static_cast<ID3D11Buffer *>( buffer.data )->Release();
+    memset(&buffer, 0, sizeof(buffer));
 }
 
 void DX11Renderer::bind_buffer(const kai::RenderBuffer &buffer) const {
