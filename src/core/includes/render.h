@@ -128,16 +128,16 @@ namespace kai {
     };
 
     struct CommandBuffer {
-        explicit CommandBuffer(Uint32 size);
+        KAI_API explicit CommandBuffer(Uint32 size);
 
-        void begin(void);
-        void end(void);
+        void KAI_API begin(void);
+        void KAI_API end(void);
 
-        void draw(Uint32 vertex_count, Uint32 starting_index = 0);
-        void bind_buffer(const RenderBuffer &buffer);
+        void KAI_API draw(Uint32 vertex_count, Uint32 starting_index = 0);
+        void KAI_API bind_buffer(const RenderBuffer &buffer);
 
-        void clear_color(void);
-        void clear_depth_stencil(void);
+        void KAI_API clear_color(void);
+        void KAI_API clear_depth_stencil(void);
 
     private:
         kai::StackAllocator allocator;
@@ -145,8 +145,8 @@ namespace kai {
 
     // Abstraction for both the GPU and rendering API
     struct RenderDevice {
-        static RenderDevice * init_device(void);
-        static RenderDevice * init_device(Uint32 id);
+        static KAI_API RenderDevice * init_device(void);
+        static KAI_API RenderDevice * init_device(Uint32 id);
 
         // A width/height of 0 simply means that it'll use the window's width/height
         virtual void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) const = 0;

@@ -15,6 +15,7 @@
 struct DX11RenderPipeline {
     ID3D11RasterizerState *rasterizer_state;
     ID3D11InputLayout *input_layout;
+    ID3D11DepthStencilView *dsv;
     D3D11_PRIMITIVE_TOPOLOGY topology;
 };
 
@@ -24,7 +25,6 @@ static struct {
     ID3D11DeviceContext *context;
     IDXGISwapChain *swap_chain;
     ID3D11RenderTargetView *rtv;
-    ID3D11DepthStencilView *dsv;
 
     DX11Renderer renderer;
     kai::PoolAllocator pipelines_pool;
@@ -57,46 +57,7 @@ static void dx11_state_setup(DX11Renderer &renderer) {
     dx11_state.swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&back_buffer));
     dx11_state.device->CreateRenderTargetView(back_buffer, nullptr, &dx11_state.rtv);
 
-    D3D11_TEXTURE2D_DESC depth_desc = {};
-    depth_desc.Width = swap_chain_desc.BufferDesc.Width;
-    depth_desc.Height = swap_chain_desc.BufferDesc.Height;
-    depth_desc.MipLevels = 1;
-    depth_desc.ArraySize = 1;
-    depth_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-    depth_desc.SampleDesc.Count = swap_chain_desc.SampleDesc.Count;
-    depth_desc.SampleDesc.Quality = swap_chain_desc.SampleDesc.Quality;
-    depth_desc.Usage = D3D11_USAGE_DEFAULT;
-    depth_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    depth_desc.CPUAccessFlags = 0;
-    depth_desc.MiscFlags = 0;
-
-    ID3D11Texture2D *depth_buffer;
-    dx11_state.device->CreateTexture2D(&depth_desc, nullptr, &depth_buffer);
-
-    D3D11_DEPTH_STENCIL_DESC ds_desc = {};
-    ds_desc.DepthEnable = true;
-    ds_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-    ds_desc.DepthFunc = D3D11_COMPARISON_LESS;
-    ds_desc.StencilEnable = false;
-
-    ID3D11DepthStencilState *ds_state;
-    dx11_state.device->CreateDepthStencilState(&ds_desc, &ds_state);
-    dx11_state.context->OMSetDepthStencilState(ds_state, 1);
-
-    D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-    dsv_desc.Format = depth_desc.Format;
-    dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-    dsv_desc.Texture2D.MipSlice = 0;
-
-    dx11_state.device->CreateDepthStencilView(depth_buffer, &dsv_desc, &dx11_state.dsv);
-    dx11_state.context->OMSetRenderTargets(1, &dx11_state.rtv, dx11_state.dsv);
-
-    ds_state->Release();
-    depth_buffer->Release();
     back_buffer->Release();
-
-
-
 
     {
         // TODO: Temporary render pipeline test
@@ -210,6 +171,7 @@ kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator
     kai::StackMarker marker;
     DX11Renderer *device = allocator.alloc<DX11Renderer, DX11Renderer>(&marker);
 
+    // TODO: Needs to be updated, because it currently only allows one device to be created
     if(!dx11_state.device && create_dx11_device(*device)) {
         IDXGIDevice *dxgi_device;
         IDXGIAdapter *adapter;
@@ -375,6 +337,45 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         return false;
     }
 
+    if(info.depth_enable) {
+        DXGI_SWAP_CHAIN_DESC swap_chain_desc;
+        dx11_state.swap_chain->GetDesc(&swap_chain_desc);
+
+        D3D11_TEXTURE2D_DESC depth_desc = {};
+        depth_desc.Width = swap_chain_desc.BufferDesc.Width;
+        depth_desc.Height = swap_chain_desc.BufferDesc.Height;
+        depth_desc.MipLevels = 1;
+        depth_desc.ArraySize = 1;
+        depth_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+        depth_desc.SampleDesc.Count = swap_chain_desc.SampleDesc.Count;
+        depth_desc.SampleDesc.Quality = swap_chain_desc.SampleDesc.Quality;
+        depth_desc.Usage = D3D11_USAGE_DEFAULT;
+        depth_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+        ID3D11Texture2D *depth_buffer;
+        dx11_state.device->CreateTexture2D(&depth_desc, nullptr, &depth_buffer);
+
+        D3D11_DEPTH_STENCIL_DESC ds_desc = {};
+        ds_desc.DepthEnable = true;
+        ds_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        ds_desc.DepthFunc = D3D11_COMPARISON_LESS;
+        ds_desc.StencilEnable = info.stencil_enable; // TODO: Set up the stencil state as well
+
+        ID3D11DepthStencilState *ds_state;
+        dx11_state.device->CreateDepthStencilState(&ds_desc, &ds_state);
+        dx11_state.context->OMSetDepthStencilState(ds_state, 1);
+
+        D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
+        dsv_desc.Format = depth_desc.Format;
+        dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+        dsv_desc.Texture2D.MipSlice = 0;
+
+        dx11_state.device->CreateDepthStencilView(depth_buffer, &dsv_desc, &dx11_pipeline->dsv);
+
+        ds_state->Release();
+        depth_buffer->Release();
+    }
+
     D3D11_RASTERIZER_DESC rasterizer_desc = {};
     rasterizer_desc.FillMode = [fill_mode = info.fill_mode]() {
         switch(fill_mode) {
@@ -453,6 +454,7 @@ void DX11Renderer::destroy_render_pipeline(kai::RenderPipeline &pipeline) {
 
     p->rasterizer_state->Release();
     p->input_layout->Release();
+    p->dsv->Release();
     reinterpret_cast<ID3D11VertexShader *>(pipeline.vertex_shader)->Release();
     reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader)->Release();
 
@@ -469,6 +471,9 @@ void DX11Renderer::set_render_pipeline(const kai::RenderPipeline &pipeline) cons
     dx11_state.context->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader), nullptr, 0);
     dx11_state.context->IASetInputLayout(p->input_layout);
     dx11_state.context->IASetPrimitiveTopology(p->topology);
+
+    dx11_state.context->OMSetRenderTargets(1, &dx11_state.rtv, p->dsv);
+
 }
 
 bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const {
@@ -547,7 +552,6 @@ void destroy_dx11(void) {
     DESTROY_IF_NEEDED(context);
     DESTROY_IF_NEEDED(swap_chain);
     DESTROY_IF_NEEDED(rtv);
-    DESTROY_IF_NEEDED(dsv);
 
     dx11_state.pipelines_pool.destroy();
 
