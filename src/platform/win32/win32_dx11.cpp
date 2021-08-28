@@ -305,13 +305,16 @@ void DX11Renderer::execute(const kai::CommandBuffer &command_buffer) const {
                 d->context->ClearRenderTargetView(d->render_target_view, p->clear_color);
                 break;
             case CommandEncoding::clear_depth:
-                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH, p->depth_clear, 0);
+                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH,
+                                                  p->depth_clear, 0);
                 break;
             case CommandEncoding::clear_stencil:
-                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH, 0.0f, static_cast<Uint8>(p->stencil_clear));
+                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_STENCIL,
+                                                  0.0f, static_cast<Uint8>(p->stencil_clear));
                 break;
             case CommandEncoding::clear_depth_stencil:
-                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH, p->depth_clear, static_cast<Uint8>(p->stencil_clear));
+                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                                                  p->depth_clear, static_cast<Uint8>(p->stencil_clear));
                 break;
 
             default:
