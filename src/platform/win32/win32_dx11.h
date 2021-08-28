@@ -16,6 +16,8 @@ void destroy_dx11(void);
 struct DX11Renderer : public kai::RenderDevice {
     DX11Renderer() = default;
 
+    void destroy_device(void) override;
+
     void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) const override;
 
     bool compile_shader(const char *shader_stream, kai::ShaderType type,
@@ -23,15 +25,11 @@ struct DX11Renderer : public kai::RenderDevice {
 
     bool create_render_pipeline(const kai::RenderPipelineInfo &info, const kai::RenderInputLayoutInfo *input_layouts,
                                 Uint32 input_layout_count, kai::RenderPipeline &out_pipeline) const override;
-
     void destroy_render_pipeline(kai::RenderPipeline &pipeline) override;
-
     void set_render_pipeline(const kai::RenderPipeline &pipeline) const override;
 
     bool create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const override;
-
     void destroy_buffer(kai::RenderBuffer &buffer) override;
-
     void bind_buffer(const kai::RenderBuffer &buffer) const override;
 };
 

@@ -11,26 +11,35 @@
 #include <d3dcompiler.h>
 #include <malloc.h>
 
-#define RENDER_PIPELINE_COUNT 32
-struct DX11RenderPipeline {
+#define DX11_DEVICE_POOL_COUNT 4
+
+struct DX11DeviceData {
+    ID3D11Device *device;
+    ID3D11DeviceContext *context;
+    IDXGISwapChain *swap_chain;
+    ID3D11RenderTargetView *render_target_view;
+};
+
+#define DX11_RENDER_PIPELINE_POOL_COUNT 32
+
+struct DX11RenderPipelineData {
     ID3D11RasterizerState *rasterizer_state;
     ID3D11InputLayout *input_layout;
-    ID3D11DepthStencilView *dsv;
+    ID3D11DepthStencilView *depth_stencil_view;
     D3D11_PRIMITIVE_TOPOLOGY topology;
 };
 
 static struct {
     IDXGIFactory *factory;
-    ID3D11Device *device;
-    ID3D11DeviceContext *context;
-    IDXGISwapChain *swap_chain;
-    ID3D11RenderTargetView *rtv;
-
     DX11Renderer renderer;
+
+    kai::PoolAllocator devices_pool;
     kai::PoolAllocator pipelines_pool;
 } dx11_state;
 
 static void dx11_state_setup(DX11Renderer &renderer) {
+    DX11DeviceData *data = static_cast<DX11DeviceData *>(renderer.data);
+
     kai::Window *window = kai::get_window();
 
     DXGI_SWAP_CHAIN_DESC swap_chain_desc = {};
@@ -49,13 +58,13 @@ static void dx11_state_setup(DX11Renderer &renderer) {
     swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    if(dx11_state.factory->CreateSwapChain(dx11_state.device, &swap_chain_desc, &dx11_state.swap_chain) != S_OK) {
+    if(dx11_state.factory->CreateSwapChain(data->device, &swap_chain_desc, &data->swap_chain) != S_OK) {
         kai::log("Error: failed creating the swap chain!\n");
     }
 
     ID3D11Texture2D *back_buffer;
-    dx11_state.swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&back_buffer));
-    dx11_state.device->CreateRenderTargetView(back_buffer, nullptr, &dx11_state.rtv);
+    data->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&back_buffer));
+    data->device->CreateRenderTargetView(back_buffer, nullptr, &data->render_target_view);
 
     back_buffer->Release();
 
@@ -142,6 +151,8 @@ static bool create_dx11_device(DX11Renderer &dx11_renderer, IDXGIAdapter *adapte
         D3D_FEATURE_LEVEL_11_0
     };
 
+    DX11DeviceData *data = static_cast<DX11DeviceData *>(dx11_state.devices_pool.alloc());
+
     bool success = D3D11CreateDevice(adapter,
                                      adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
                                      nullptr,
@@ -149,12 +160,15 @@ static bool create_dx11_device(DX11Renderer &dx11_renderer, IDXGIAdapter *adapte
                                      levels,
                                      KAI_ARRAY_COUNT(levels),
                                      D3D11_SDK_VERSION,
-                                     &dx11_state.device,
+                                     &data->device,
                                      nullptr,
-                                     &dx11_state.context) == S_OK;
+                                     &data->context) == S_OK;
 
     if(success) {
+        dx11_renderer.data = data;
         dx11_state_setup(dx11_renderer);
+    } else {
+        dx11_state.devices_pool.free(data);
     }
 
     return success;
@@ -171,11 +185,13 @@ kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator
     kai::StackMarker marker;
     DX11Renderer *device = allocator.alloc<DX11Renderer, DX11Renderer>(&marker);
 
-    // TODO: Needs to be updated, because it currently only allows one device to be created
-    if(!dx11_state.device && create_dx11_device(*device)) {
+    if(create_dx11_device(*device)) {
+        DX11DeviceData *data = static_cast<DX11DeviceData *>(device->data);
+
         IDXGIDevice *dxgi_device;
         IDXGIAdapter *adapter;
-        dx11_state.device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgi_device));
+
+        data->device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgi_device));
 
         DXGI_ADAPTER_DESC desc;
         dxgi_device->GetAdapter(&adapter);
@@ -197,42 +213,51 @@ kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator
 }
 
 kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator, Uint32 id) {
-    if(!dx11_state.device) {
-        IDXGIAdapter *adapter = nullptr;
+    IDXGIAdapter *adapter = nullptr;
 
-        kai::StackMarker marker;
-        DX11Renderer *device = allocator.alloc<DX11Renderer, DX11Renderer>(&marker);
+    kai::StackMarker marker;
+    DX11Renderer *device = allocator.alloc<DX11Renderer, DX11Renderer>(&marker);
 
-        bool created_device = false;
+    bool created_device = false;
 
-        Uint32 i = 0;
-        DXGI_ADAPTER_DESC desc;
-        for(; dx11_state.factory->EnumAdapters(i, &adapter) == S_OK; i++) {
-            adapter->GetDesc(&desc);
+    Uint32 i = 0;
+    DXGI_ADAPTER_DESC desc;
+    for(; dx11_state.factory->EnumAdapters(i, &adapter) == S_OK; i++) {
+        adapter->GetDesc(&desc);
 
-            if(desc.DeviceId == id) {
-                created_device = create_dx11_device(*device, adapter);
-                break;
-            }
-
-            adapter->Release();
+        if(desc.DeviceId == id) {
+            created_device = create_dx11_device(*device, adapter);
+            break;
         }
 
-        if(adapter) {
-            adapter->Release();
-        }
-
-        if(created_device) {
-            set_device_properties(*device, desc);
-        } else {
-            allocator.free(marker);
-            return platform_renderer_init_device(allocator);
-        }
-
-        return device;
+        adapter->Release();
     }
 
-    return nullptr;
+    if(adapter) {
+        adapter->Release();
+    }
+
+    if(created_device) {
+        set_device_properties(*device, desc);
+    } else {
+        allocator.free(marker);
+        return platform_renderer_init_device(allocator);
+    }
+
+    return device;
+}
+
+void DX11Renderer::destroy_device(void) {
+    DX11DeviceData *d = static_cast<DX11DeviceData *>(data);
+
+    d->device->Release();
+    d->context->Release();
+    d->swap_chain->Release();
+    d->render_target_view->Release();
+
+    dx11_state.devices_pool.free(d);
+
+    memset(this, 0, sizeof(*this));
 }
 
 void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) const {
@@ -248,11 +273,13 @@ void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) c
     viewport.MinDepth = 0;
     viewport.MaxDepth = 1.0f;
 
-    dx11_state.context->RSSetViewports(1, &viewport);
+    static_cast<DX11DeviceData *>(data)->context->RSSetViewports(1, &viewport);
 }
 
 bool DX11Renderer::compile_shader(const char *shader_stream, kai::ShaderType type,
                                   const char *entry, void *out_id, void **bytecode) const {
+    DX11DeviceData *d = static_cast<DX11DeviceData *>(data);
+
     ID3DBlob *buffer = nullptr;
     ID3DBlob *error = nullptr;
     UINT compile_flags = D3DCOMPILE_PACK_MATRIX_COLUMN_MAJOR;
@@ -278,10 +305,10 @@ bool DX11Renderer::compile_shader(const char *shader_stream, kai::ShaderType typ
     switch(type) {
         case kai::ShaderType::vertex: {
             ID3D11VertexShader *shader;
-            dx11_state.device->CreateVertexShader(buffer->GetBufferPointer(),
-                                                  buffer->GetBufferSize(),
-                                                  nullptr,
-                                                  &shader);
+            d->device->CreateVertexShader(buffer->GetBufferPointer(),
+                                          buffer->GetBufferSize(),
+                                          nullptr,
+                                          &shader);
 
             if(out_id) {
                 *reinterpret_cast<kai::VertexShaderID *>(out_id) = reinterpret_cast<kai::VertexShaderID>(shader);
@@ -291,10 +318,10 @@ bool DX11Renderer::compile_shader(const char *shader_stream, kai::ShaderType typ
         }
         case kai::ShaderType::pixel: {
             ID3D11PixelShader *shader;
-            dx11_state.device->CreatePixelShader(buffer->GetBufferPointer(),
-                                                 buffer->GetBufferSize(),
-                                                 nullptr,
-                                                 &shader);
+            d->device->CreatePixelShader(buffer->GetBufferPointer(),
+                                         buffer->GetBufferSize(),
+                                         nullptr,
+                                         &shader);
 
             if(out_id) {
                 *reinterpret_cast<kai::PixelShaderID *>(out_id) = reinterpret_cast<kai::PixelShaderID>(shader);
@@ -330,7 +357,8 @@ static KAI_FORCEINLINE DXGI_FORMAT get_dxgi_format(kai::RenderFormat format) {
 bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, const kai::RenderInputLayoutInfo *input_layouts,
                                           Uint32 input_layout_count, kai::RenderPipeline &out_pipeline) const {
 
-    DX11RenderPipeline *dx11_pipeline = static_cast<DX11RenderPipeline *>(dx11_state.pipelines_pool.alloc());
+    DX11DeviceData *d = static_cast<DX11DeviceData *>(data);
+    DX11RenderPipelineData *dx11_pipeline = static_cast<DX11RenderPipelineData *>(dx11_state.pipelines_pool.alloc());
 
     if(!dx11_pipeline) {
         kai::log("Could not create a new render pipeline object!\n");
@@ -339,7 +367,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
 
     if(info.depth_enable) {
         DXGI_SWAP_CHAIN_DESC swap_chain_desc;
-        dx11_state.swap_chain->GetDesc(&swap_chain_desc);
+        d->swap_chain->GetDesc(&swap_chain_desc);
 
         D3D11_TEXTURE2D_DESC depth_desc = {};
         depth_desc.Width = swap_chain_desc.BufferDesc.Width;
@@ -353,7 +381,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         depth_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
         ID3D11Texture2D *depth_buffer;
-        dx11_state.device->CreateTexture2D(&depth_desc, nullptr, &depth_buffer);
+        d->device->CreateTexture2D(&depth_desc, nullptr, &depth_buffer);
 
         D3D11_DEPTH_STENCIL_DESC ds_desc = {};
         ds_desc.DepthEnable = true;
@@ -362,15 +390,15 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         ds_desc.StencilEnable = info.stencil_enable; // TODO: Set up the stencil state as well
 
         ID3D11DepthStencilState *ds_state;
-        dx11_state.device->CreateDepthStencilState(&ds_desc, &ds_state);
-        dx11_state.context->OMSetDepthStencilState(ds_state, 1);
+        d->device->CreateDepthStencilState(&ds_desc, &ds_state);
+        d->context->OMSetDepthStencilState(ds_state, 1);
 
         D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
         dsv_desc.Format = depth_desc.Format;
         dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
         dsv_desc.Texture2D.MipSlice = 0;
 
-        dx11_state.device->CreateDepthStencilView(depth_buffer, &dsv_desc, &dx11_pipeline->dsv);
+        d->device->CreateDepthStencilView(depth_buffer, &dsv_desc, &dx11_pipeline->depth_stencil_view);
 
         ds_state->Release();
         depth_buffer->Release();
@@ -399,7 +427,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
     rasterizer_desc.MultisampleEnable = false;
     rasterizer_desc.AntialiasedLineEnable = false;
 
-    dx11_state.device->CreateRasterizerState(&rasterizer_desc, &dx11_pipeline->rasterizer_state);
+    d->device->CreateRasterizerState(&rasterizer_desc, &dx11_pipeline->rasterizer_state);
 
 
     ID3DBlob *vs_bytecode;
@@ -414,7 +442,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         return false;
     }
 
-    out_pipeline.state = dx11_pipeline;
+    out_pipeline.data = dx11_pipeline;
 
 
     size_t input_size = sizeof(D3D11_INPUT_ELEMENT_DESC) * input_layout_count;
@@ -430,8 +458,8 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
             input_layouts[i].offset : D3D11_INPUT_PER_VERTEX_DATA;
     }
 
-    dx11_state.device->CreateInputLayout(input_descs, input_layout_count, vs_bytecode->GetBufferPointer(),
-                                         vs_bytecode->GetBufferSize(), &dx11_pipeline->input_layout);
+    d->device->CreateInputLayout(input_descs, input_layout_count, vs_bytecode->GetBufferPointer(),
+                                 vs_bytecode->GetBufferSize(), &dx11_pipeline->input_layout);
 
     vs_bytecode->Release();
 
@@ -450,11 +478,11 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
 }
 
 void DX11Renderer::destroy_render_pipeline(kai::RenderPipeline &pipeline) {
-    DX11RenderPipeline *p = static_cast<DX11RenderPipeline *>(pipeline.state);
+    DX11RenderPipelineData *p = static_cast<DX11RenderPipelineData *>(pipeline.data);
 
     p->rasterizer_state->Release();
     p->input_layout->Release();
-    p->dsv->Release();
+    p->depth_stencil_view->Release();
     reinterpret_cast<ID3D11VertexShader *>(pipeline.vertex_shader)->Release();
     reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader)->Release();
 
@@ -464,16 +492,16 @@ void DX11Renderer::destroy_render_pipeline(kai::RenderPipeline &pipeline) {
 }
 
 void DX11Renderer::set_render_pipeline(const kai::RenderPipeline &pipeline) const {
-    DX11RenderPipeline *p = static_cast<DX11RenderPipeline *>(pipeline.state);
+    DX11DeviceData *d = static_cast<DX11DeviceData *>(data);
+    DX11RenderPipelineData *p = static_cast<DX11RenderPipelineData *>(pipeline.data);
 
-    dx11_state.context->RSSetState(p->rasterizer_state);
-    dx11_state.context->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.vertex_shader), nullptr, 0);
-    dx11_state.context->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader), nullptr, 0);
-    dx11_state.context->IASetInputLayout(p->input_layout);
-    dx11_state.context->IASetPrimitiveTopology(p->topology);
+    d->context->RSSetState(p->rasterizer_state);
+    d->context->VSSetShader(reinterpret_cast<ID3D11VertexShader *>(pipeline.vertex_shader), nullptr, 0);
+    d->context->PSSetShader(reinterpret_cast<ID3D11PixelShader *>(pipeline.pixel_shader), nullptr, 0);
+    d->context->IASetInputLayout(p->input_layout);
+    d->context->IASetPrimitiveTopology(p->topology);
 
-    dx11_state.context->OMSetRenderTargets(1, &dx11_state.rtv, p->dsv);
-
+    d->context->OMSetRenderTargets(1, &d->render_target_view, p->depth_stencil_view);
 }
 
 bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const {
@@ -508,7 +536,7 @@ bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderB
     subresource.pSysMem = info.data;
 
     ID3D11Buffer *buffer_data;
-    if(dx11_state.device->CreateBuffer(&buffer_desc, &subresource, &buffer_data) != S_OK) {
+    if(static_cast<DX11DeviceData *>(data)->device->CreateBuffer(&buffer_desc, &subresource, &buffer_data) != S_OK) {
         return false;
     }
 
@@ -526,7 +554,7 @@ void DX11Renderer::destroy_buffer(kai::RenderBuffer &buffer) {
 void DX11Renderer::bind_buffer(const kai::RenderBuffer &buffer) const {
     Uint32 stride = buffer.stride;
     Uint32 offset = 0;
-    dx11_state.context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(buffer.data), &stride, &offset);
+    static_cast<DX11DeviceData *>(data)->context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(buffer.data), &stride, &offset);
 }
 
 void init_dx11(void) {
@@ -536,7 +564,8 @@ void init_dx11(void) {
             return;
         }
 
-        dx11_state.pipelines_pool = kai::PoolAllocator(sizeof(DX11RenderPipeline), RENDER_PIPELINE_COUNT);
+        dx11_state.devices_pool = kai::PoolAllocator(sizeof(DX11DeviceData), DX11_DEVICE_POOL_COUNT);
+        dx11_state.pipelines_pool = kai::PoolAllocator(sizeof(DX11RenderPipelineData), DX11_RENDER_PIPELINE_POOL_COUNT);
     }
 }
 
@@ -548,11 +577,8 @@ void destroy_dx11(void) {
     }
 
     DESTROY_IF_NEEDED(factory);
-    DESTROY_IF_NEEDED(device);
-    DESTROY_IF_NEEDED(context);
-    DESTROY_IF_NEEDED(swap_chain);
-    DESTROY_IF_NEEDED(rtv);
 
+    dx11_state.devices_pool.destroy();
     dx11_state.pipelines_pool.destroy();
 
 #undef DESTROY_IF_NEEDED

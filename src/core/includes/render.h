@@ -122,7 +122,7 @@ namespace kai {
     };
 
     struct RenderPipeline {
-        void *state;
+        void *data;
         VertexShaderID vertex_shader;
         PixelShaderID pixel_shader;
     };
@@ -148,6 +148,8 @@ namespace kai {
         static KAI_API RenderDevice * init_device(void);
         static KAI_API RenderDevice * init_device(Uint32 id);
 
+        virtual void destroy_device(void) = 0;
+
         // A width/height of 0 simply means that it'll use the window's width/height
         virtual void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) const = 0;
 
@@ -167,6 +169,7 @@ namespace kai {
 
         virtual void bind_buffer(const RenderBuffer &buffer) const = 0; // TODO: Will probably be moved to be encoded in a CommandBuffer
 
+        void *data;
         Uint32 id;
         RenderingBackend backend;
         char name[128] = {}; // TODO: Change to UTF-8 string once that is implemented
