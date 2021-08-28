@@ -34,7 +34,7 @@ namespace kai {
     typedef Uint32 StackMarker;
 
     struct StackAllocator {
-        KAI_API StackAllocator() = default;
+        KAI_API StackAllocator(void) = default;
         KAI_API StackAllocator(Uint32 bytes, Bool32 aligned_allocs = true); // NOTE: Allocators are limited to 4GB
 
         KAI_API void destroy(void);
@@ -56,6 +56,9 @@ namespace kai {
         KAI_API void free(StackMarker marker);
         KAI_API void clear(void);
 
+        KAI_API const void * get_data(void) const;
+        KAI_API void * get_data(void);
+
         StackMarker get_marker(void) const {
             return current_marker;
         }
@@ -67,7 +70,7 @@ namespace kai {
     };
 
     struct PoolAllocator {
-        KAI_API PoolAllocator() = default;
+        KAI_API PoolAllocator(void) = default;
         KAI_API PoolAllocator(Uint32 elem_size, Uint32 count);
 
         KAI_API void destroy(void);

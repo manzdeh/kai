@@ -14,9 +14,12 @@ void init_dx11(void);
 void destroy_dx11(void);
 
 struct DX11Renderer : public kai::RenderDevice {
-    DX11Renderer() = default;
+    DX11Renderer(void) = default;
 
     void destroy_device(void) override;
+
+    void execute(const kai::CommandBuffer &command_buffer) const override;
+    void present(void) const override;
 
     void set_viewport(Int32 x, Int32 y, Uint32 width = 0, Uint32 height = 0) const override;
 
@@ -30,7 +33,6 @@ struct DX11Renderer : public kai::RenderDevice {
 
     bool create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const override;
     void destroy_buffer(kai::RenderBuffer &buffer) override;
-    void bind_buffer(const kai::RenderBuffer &buffer) const override;
 };
 
 #endif /* KAI_WIN32_DX11_H */

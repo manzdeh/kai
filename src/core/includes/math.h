@@ -21,7 +21,7 @@ namespace kai {
     KAI_FORCEINLINE T abs(T val) { return (val >= 0) ? val : -val; }
     template<typename T>
     KAI_FORCEINLINE void clamp(T &value, T v0, T v1) {
-        Float32 t = min(v0, v1);
+        T t = min(v0, v1);
         v1 = max(v0, v1);
         v0 = t;
         value = min(max(v0, value), v1);
@@ -84,7 +84,7 @@ namespace kai {
     }
 
     struct Vec2 {
-        Vec2() = default;
+        Vec2(void) = default;
         Vec2(Float32 x, Float32 y = 0.0f) : x(x), y(y) {}
 
         bool operator==(const Vec2 &rhs) const {
@@ -129,7 +129,7 @@ namespace kai {
     }
 
     struct Vec4 {
-        Vec4() = default;
+        Vec4(void) = default;
         Vec4(Float32 x, Float32 y = 0.0f, Float32 z = 0.0f, Float32 w = 0.0f) : x(x), y(y), z(z), w(w) {}
 
         static Vec4 up(void) {

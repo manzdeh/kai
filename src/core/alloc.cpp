@@ -153,7 +153,7 @@ Uint64 MemoryHandle::get_size(void) const {
     return BLOCK_SIZE * block_count;
 }
 
-// -------------------------------------------------- Stack Allocator --------------------------------------------------
+// -------------------------------------------------- Stack Allocator -------------------------------------------------- //
 kai::StackAllocator::StackAllocator(Uint32 bytes, Bool32 aligned_allocs) : should_align(aligned_allocs) {
     if(!MemoryManager::reserve_blocks(handle, bytes)) {
         // TODO: Error logging
@@ -205,7 +205,15 @@ void kai::StackAllocator::clear(void) {
     current_marker = 0;
 }
 
-// -------------------------------------------------- Pool Allocator --------------------------------------------------
+const void * kai::StackAllocator::get_data(void) const {
+    return MemoryManager::get_ptr(handle);
+}
+
+void * kai::StackAllocator::get_data(void) {
+    return MemoryManager::get_ptr(handle);
+}
+
+// -------------------------------------------------- Pool Allocator -------------------------------------------------- //
 kai::PoolAllocator::PoolAllocator(Uint32 elem_size, Uint32 count) :
     element_count(count),
     chunk_size(elem_size) {

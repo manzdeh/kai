@@ -27,10 +27,14 @@ struct DX11RenderPipelineData {
     ID3D11InputLayout *input_layout;
     ID3D11DepthStencilView *depth_stencil_view;
     D3D11_PRIMITIVE_TOPOLOGY topology;
+    Float32 clear_color[4];
+    Float32 depth_clear;
+    Uint32 stencil_clear;
 };
 
 static struct {
     IDXGIFactory *factory;
+    DX11RenderPipelineData *active_pipeline;
     DX11Renderer renderer;
 
     kai::PoolAllocator devices_pool;
@@ -105,9 +109,9 @@ static void dx11_state_setup(DX11Renderer &renderer) {
         pipeline_info.topology = kai::RenderPipelineInfo::TopologyType::triangle_list;
         pipeline_info.front_ccw = true;
         pipeline_info.color_enable = true;
-        pipeline_info.color_clear_values[0] = 1.0f;
-        pipeline_info.color_clear_values[1] = 0.0f;
-        pipeline_info.color_clear_values[2] = 0.0f;
+        pipeline_info.color_clear_values[0] = 0.25f;
+        pipeline_info.color_clear_values[1] = 0.15f;
+        pipeline_info.color_clear_values[2] = 0.35f;
         pipeline_info.color_clear_values[3] = 1.0f;
         pipeline_info.depth_enable = true;
         pipeline_info.depth_clear_value = 1.0f;
@@ -121,22 +125,6 @@ static void dx11_state_setup(DX11Renderer &renderer) {
         renderer.create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
         renderer.set_render_pipeline(pipeline);
 
-        static const Float32 triangle[] = {
-            -0.5f, -0.5f, 0.0f,
-            0.5f, -0.5f, 0.0f,
-            0.0f,  0.5f, 0.0f
-        };
-
-        kai::RenderBufferInfo info = {};
-        info.data = triangle;
-        info.byte_size = sizeof(triangle);
-        info.stride = sizeof(Float32) * 3;
-        info.type = kai::RenderBufferInfo::Type::vertex_buffer;
-        info.resource_usage = kai::RenderResourceUsage::gpu_rw;
-
-        kai::RenderBuffer buffer;
-        renderer.create_buffer(info, buffer);
-        renderer.bind_buffer(buffer);
     }
 }
 
@@ -258,6 +246,82 @@ void DX11Renderer::destroy_device(void) {
     dx11_state.devices_pool.free(d);
 
     memset(this, 0, sizeof(*this));
+}
+
+void DX11Renderer::execute(const kai::CommandBuffer &command_buffer) const {
+    KAI_ASSERT(dx11_state.active_pipeline);
+
+    Uint32 offset = 0;
+    auto fetch_next_command = [data = command_buffer.get_data(), &offset](CommandEncoding &encoding, const void **address) {
+        const Uint8 *buffer = static_cast<const Uint8 *>(data) + offset;
+        encoding = *reinterpret_cast<const CommandEncoding *>(buffer);
+
+        switch(encoding) {
+            case CommandEncoding::draw:
+                offset += sizeof(CommandEncodingData::Draw);
+                break;
+            case CommandEncoding::bind_buffer:
+                offset += sizeof(CommandEncodingData::BindBuffer);
+                break;
+
+            // These don't have any data, only an id for the command to execute
+            case CommandEncoding::clear_color:
+            case CommandEncoding::clear_depth:
+            case CommandEncoding::clear_stencil:
+            case CommandEncoding::clear_depth_stencil:
+                offset += sizeof(CommandEncoding);
+                break;
+
+            case CommandEncoding::end:
+            default:
+                return false;
+        }
+
+        *address = buffer;
+        return true;
+    };
+
+    DX11DeviceData *d = static_cast<DX11DeviceData *>(data);
+    DX11RenderPipelineData *p = dx11_state.active_pipeline;
+
+    CommandEncoding encoding;
+    const void *address;
+    while(fetch_next_command(encoding, &address)) {
+        switch(encoding) {
+            case CommandEncoding::draw: {
+                const auto *c = static_cast<const CommandEncodingData::Draw *>(address);
+                d->context->Draw(c->count, c->start);
+                break;
+            }
+            case CommandEncoding::bind_buffer: {
+                const auto *c = static_cast<const CommandEncodingData::BindBuffer *>(address);
+                Uint32 stride = c->buffer->stride;
+                Uint32 off = 0;
+                d->context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(c->buffer->data), &stride, &off);
+                break;
+            }
+
+            case CommandEncoding::clear_color:
+                d->context->ClearRenderTargetView(d->render_target_view, p->clear_color);
+                break;
+            case CommandEncoding::clear_depth:
+                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH, p->depth_clear, 0);
+                break;
+            case CommandEncoding::clear_stencil:
+                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH, 0.0f, static_cast<Uint8>(p->stencil_clear));
+                break;
+            case CommandEncoding::clear_depth_stencil:
+                d->context->ClearDepthStencilView(p->depth_stencil_view, D3D11_CLEAR_DEPTH, p->depth_clear, static_cast<Uint8>(p->stencil_clear));
+                break;
+
+            default:
+                continue;
+        }
+    }
+}
+
+void DX11Renderer::present(void) const {
+    static_cast<DX11DeviceData *>(data)->swap_chain->Present(1, 0);
 }
 
 void DX11Renderer::set_viewport(Int32 x, Int32 y, Uint32 width, Uint32 height) const {
@@ -402,6 +466,18 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
 
         ds_state->Release();
         depth_buffer->Release();
+
+        dx11_pipeline->depth_clear = info.depth_clear_value;
+        kai::clamp(dx11_pipeline->depth_clear, 0.0f, 1.0f);
+    } else {
+        dx11_pipeline->depth_clear = 0.0f;
+    }
+
+    if(info.stencil_enable) {
+        dx11_pipeline->stencil_clear = info.stencil_clear_value;
+        kai::clamp<Uint32>(dx11_pipeline->stencil_clear, 0, 0xff);
+    } else {
+        dx11_pipeline->stencil_clear = 0;
     }
 
     D3D11_RASTERIZER_DESC rasterizer_desc = {};
@@ -474,6 +550,11 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         }
     }();
 
+    memcpy(&dx11_pipeline->clear_color, info.color_clear_values, sizeof(dx11_pipeline->clear_color));
+    for(Uint32 i = 0; i < KAI_ARRAY_COUNT(dx11_pipeline->clear_color); i++) {
+        kai::clamp(dx11_pipeline->clear_color[i], 0.0f, 1.0f);
+    }
+
     return true;
 }
 
@@ -502,6 +583,8 @@ void DX11Renderer::set_render_pipeline(const kai::RenderPipeline &pipeline) cons
     d->context->IASetPrimitiveTopology(p->topology);
 
     d->context->OMSetRenderTargets(1, &d->render_target_view, p->depth_stencil_view);
+
+    dx11_state.active_pipeline = p;
 }
 
 bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderBuffer &out_buffer) const {
@@ -549,12 +632,6 @@ bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderB
 void DX11Renderer::destroy_buffer(kai::RenderBuffer &buffer) {
     static_cast<ID3D11Buffer *>( buffer.data )->Release();
     memset(&buffer, 0, sizeof(buffer));
-}
-
-void DX11Renderer::bind_buffer(const kai::RenderBuffer &buffer) const {
-    Uint32 stride = buffer.stride;
-    Uint32 offset = 0;
-    static_cast<DX11DeviceData *>(data)->context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(buffer.data), &stride, &offset);
 }
 
 void init_dx11(void) {
