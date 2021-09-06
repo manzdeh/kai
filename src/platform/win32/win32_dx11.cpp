@@ -208,9 +208,8 @@ kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator
 
     bool created_device = false;
 
-    Uint32 i = 0;
     DXGI_ADAPTER_DESC desc;
-    for(; dx11_state.factory->EnumAdapters(i, &adapter) == S_OK; i++) {
+    for(Uint32 i = 0; dx11_state.factory->EnumAdapters(i, &adapter) == S_OK; i++) {
         adapter->GetDesc(&desc);
 
         if(desc.DeviceId == id) {
@@ -289,12 +288,12 @@ void DX11Renderer::execute(const kai::CommandBuffer &command_buffer) const {
     while(fetch_next_command(encoding, &address)) {
         switch(encoding) {
             case CommandEncoding::draw: {
-                const auto *c = static_cast<const CommandEncodingData::Draw *>(address);
+                const auto c = static_cast<const CommandEncodingData::Draw *>(address);
                 d->context->Draw(c->count, c->start);
                 break;
             }
             case CommandEncoding::bind_buffer: {
-                const auto *c = static_cast<const CommandEncodingData::BindBuffer *>(address);
+                const auto c = static_cast<const CommandEncodingData::BindBuffer *>(address);
                 Uint32 stride = c->buffer->stride;
                 Uint32 off = 0;
                 d->context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(c->buffer->data), &stride, &off);

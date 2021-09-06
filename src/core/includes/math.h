@@ -42,7 +42,7 @@ namespace kai {
     }
 
     constexpr Float32 deg_to_rad(Float32 deg) {
-        return (deg * pi()) / 180.0f;
+        return (deg / 180.0f) * pi();
     }
 
     constexpr Float32 rad_to_deg(Float32 rad) {
