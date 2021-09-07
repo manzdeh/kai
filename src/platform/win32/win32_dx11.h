@@ -16,7 +16,7 @@ void destroy_dx11(void);
 struct DX11Renderer : public kai::RenderDevice {
     DX11Renderer(void) = default;
 
-    void destroy_device(void) override;
+    void destroy(void) override;
 
     void execute(const kai::CommandBuffer &command_buffer) const override;
     void present(void) const override;

@@ -131,6 +131,8 @@ namespace kai {
         KAI_API explicit CommandBuffer(void) = default;
         KAI_API explicit CommandBuffer(Uint32 command_count);
 
+        void KAI_API destroy(void);
+
         void KAI_API begin(void);
         void KAI_API end(void);
 
@@ -156,7 +158,7 @@ namespace kai {
         static KAI_API RenderDevice * init_device(void);
         static KAI_API RenderDevice * init_device(Uint32 id);
 
-        virtual void destroy_device(void) = 0;
+        virtual void destroy(void) = 0;
 
         virtual void execute(const CommandBuffer &command_buffer) const = 0;
         virtual void present(void) const = 0;

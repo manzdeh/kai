@@ -65,6 +65,10 @@ namespace kai {
         return sinf(angle);
     }
 
+    Float32 tangent(Float32 angle) {
+        return tanf(angle);
+    }
+
     template<typename T>
     Float32 magnitude(const T &vec) {
         return square_root((vec * vec).sum());
@@ -302,6 +306,31 @@ namespace kai {
                              s.y,                u.y,               f.y, 0.0f,
                              s.z,                u.z,               f.z, 0.0f,
                 -kai::dot(s, eye), -kai::dot(u, eye), -kai::dot(f, eye), 1.0f
+            };
+        }
+
+        static Mat4x4 ortho(Float32 left, Float32 right, Float32 bottom,
+                            Float32 top, Float32 near_z, Float32 far_z) {
+            Float32 diff_s = right - left;
+            Float32 diff_u = top - bottom;
+            Float32 diff_f = far_z - near_z;
+
+            return {
+                             2.0f / diff_s,                       0.0f,                         0.0f, 0.0f,
+                                      0.0f,              2.0f / diff_u,                         0.0f, 0.0f,
+                                      0.0f,                       0.0f,               -2.0f / diff_f, 0.0f,
+                -((right + left) / diff_s), -((top + bottom) / diff_u), -((far_z + near_z) / diff_f), 1.0f
+            };
+        }
+
+        static Mat4x4 perspective(Float32 fov, Float32 aspect_ratio, Float32 near_z, Float32 far_z) {
+            Float32 t = 1.0f / tangent(fov * 0.5f);
+
+            return {
+                t / aspect_ratio, 0.0f,                                0.0f,                                     0.0f,
+                            0.0f,    t,                                0.0f,                                     0.0f,
+                            0.0f, 0.0f, (far_z + near_z) / (near_z - far_z), 2.0f * far_z * near_z / (near_z - far_z),
+                            0.0f, 0.0f,                               -1.0f,                                     0.0f
             };
         }
 

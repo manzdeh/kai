@@ -72,60 +72,6 @@ static void dx11_state_setup(DX11Renderer &renderer) {
 
     back_buffer->Release();
 
-    {
-        // TODO: Temporary render pipeline test
-        static const char vshader[] = {
-            "struct VSInput {\n"
-            "   float3 pos : POSITION;\n"
-            "};\n"
-            "struct VSOutput {\n"
-            "   float4 pos : SV_Position;\n"
-            "};\n"
-            "VSOutput vs_main(VSInput input) {\n"
-            "   VSOutput output;\n"
-            "   output.pos = float4(input.pos, 1.0);\n"
-            "   return output;\n"
-            "}"
-        };
-
-        static const char pshader[] = {
-            "struct PSInput {\n"
-            "   float4 pos : SV_Position;\n"
-            "};\n"
-            "float4 ps_main(PSInput input) : SV_TARGET {\n"
-            "   return float4(1.0, 0.0, 0.0, 1.0);\n"
-            "}"
-        };
-
-        renderer.set_viewport(0, 0);
-
-        kai::RenderPipelineInfo pipeline_info = {};
-        pipeline_info.vertex_shader_source = vshader;
-        pipeline_info.pixel_shader_source = pshader;
-        pipeline_info.vertex_shader_entry = "vs_main";
-        pipeline_info.pixel_shader_entry = "ps_main";
-        pipeline_info.fill_mode = kai::RenderPipelineInfo::FillMode::solid;
-        pipeline_info.cull_mode = kai::RenderPipelineInfo::CullMode::back;
-        pipeline_info.topology = kai::RenderPipelineInfo::TopologyType::triangle_list;
-        pipeline_info.front_ccw = true;
-        pipeline_info.color_enable = true;
-        pipeline_info.color_clear_values[0] = 0.25f;
-        pipeline_info.color_clear_values[1] = 0.15f;
-        pipeline_info.color_clear_values[2] = 0.35f;
-        pipeline_info.color_clear_values[3] = 1.0f;
-        pipeline_info.depth_enable = true;
-        pipeline_info.depth_clear_value = 1.0f;
-        pipeline_info.stencil_enable = false;
-
-        kai::RenderInputLayoutInfo input_info = {};
-        input_info.name = "POSITION";
-        input_info.format = kai::RenderFormat::rgb_f32;
-
-        kai::RenderPipeline pipeline;
-        renderer.create_render_pipeline(pipeline_info, &input_info, 1, pipeline);
-        renderer.set_render_pipeline(pipeline);
-
-    }
 }
 
 static bool create_dx11_device(DX11Renderer &dx11_renderer, IDXGIAdapter *adapter = nullptr) {
@@ -234,7 +180,7 @@ kai::RenderDevice * platform_renderer_init_device(kai::StackAllocator &allocator
     return device;
 }
 
-void DX11Renderer::destroy_device(void) {
+void DX11Renderer::destroy(void) {
     DX11DeviceData *d = static_cast<DX11DeviceData *>(data);
 
     d->device->Release();

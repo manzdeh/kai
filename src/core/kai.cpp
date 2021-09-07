@@ -38,44 +38,12 @@ static struct {
 static kai::StackAllocator engine_memory;
 static KaiLogProc log_func = nullptr;
 
-static kai::RenderDevice *test_device;
-static kai::CommandBuffer cmd_buffer;
-static kai::RenderBuffer render_buffer;
-
 void init_engine(void) {
     MemoryManager::init(kai::gibibytes(4));
     engine_memory = kai::StackAllocator(static_cast<Uint32>(kai::mebibytes(64)));
     init_input();
 
     init_renderer(kai::RenderingBackend::dx11);
-
-    {
-        // TODO: Temporary!
-        test_device = kai::RenderDevice::init_device(); // TODO: This should be done by the game
-
-        static const Float32 triangle[] = {
-            -0.5f, -0.5f, 0.0f,
-            0.5f, -0.5f, 0.0f,
-            0.0f,  0.5f, 0.0f
-        };
-
-        kai::RenderBufferInfo info = {};
-        info.data = triangle;
-        info.byte_size = sizeof(triangle);
-        info.stride = sizeof(Float32) * 3;
-        info.type = kai::RenderBufferInfo::Type::vertex_buffer;
-        info.resource_usage = kai::RenderResourceUsage::gpu_rw;
-
-        test_device->create_buffer(info, render_buffer);
-
-        cmd_buffer = kai::CommandBuffer(10);
-        cmd_buffer.begin();
-        cmd_buffer.bind_buffer(render_buffer);
-        cmd_buffer.clear_color();
-        cmd_buffer.clear_depth_stencil();
-        cmd_buffer.draw(3);
-        cmd_buffer.end();
-    }
 
     // TODO: Log an error if the required callbacks haven't been found on the game's side
     platform_setup_game_callbacks(game_manager.callbacks);
@@ -93,9 +61,6 @@ bool tick_engine(void) {
 #endif
 
     swap_input_buffers();
-
-    test_device->execute(cmd_buffer);
-    test_device->present();
 
     return true; // TODO: Always returns true for now. Eventually we need to check if the game has sent a quit request
 }

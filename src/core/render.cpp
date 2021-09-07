@@ -31,6 +31,11 @@ kai::CommandBuffer::CommandBuffer(Uint32 command_count) {
     allocator = kai::StackAllocator((command_count + 1) * sizeof(CommandEncodingData));
 }
 
+void kai::CommandBuffer::destroy(void) {
+    allocator.destroy();
+    memset(this, 0, sizeof(*this));
+}
+
 void kai::CommandBuffer::begin(void) {
     allocator.clear();
 }
