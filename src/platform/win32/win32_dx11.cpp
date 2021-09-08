@@ -242,7 +242,20 @@ void DX11Renderer::execute(const kai::CommandBuffer &command_buffer) const {
                 const auto c = static_cast<const CommandEncodingData::BindBuffer *>(address);
                 Uint32 stride = c->buffer->stride;
                 Uint32 off = 0;
-                d->context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(c->buffer->data), &stride, &off);
+                switch(c->type) {
+                    case kai::RenderBufferType::vertex:
+                        d->context->IASetVertexBuffers(0, 1, &static_cast<ID3D11Buffer *>(c->buffer->data), &stride, &off);
+                        break;
+                    case kai::RenderBufferType::constant:
+                        if(c->shader_type == kai::ShaderType::vertex) {
+                            d->context->VSSetConstantBuffers(0, 1, &static_cast<ID3D11Buffer *>(c->buffer->data));
+                        } else if(c->shader_type == kai::ShaderType::pixel) {
+                            d->context->PSSetConstantBuffers(0, 1, &static_cast<ID3D11Buffer *>(c->buffer->data));
+                        }
+                        break;
+                    default:
+                        break;
+                }
                 break;
             }
 
@@ -549,9 +562,9 @@ bool DX11Renderer::create_buffer(const kai::RenderBufferInfo &info, kai::RenderB
     }();
     buffer_desc.BindFlags = [type = info.type]() {
         switch(type) {
-            case kai::RenderBufferInfo::Type::index_buffer: return D3D11_BIND_INDEX_BUFFER;
-            case kai::RenderBufferInfo::Type::constant_buffer: return D3D11_BIND_CONSTANT_BUFFER;
-            case kai::RenderBufferInfo::Type::vertex_buffer: default: return D3D11_BIND_VERTEX_BUFFER;
+            case kai::RenderBufferType::index: return D3D11_BIND_INDEX_BUFFER;
+            case kai::RenderBufferType::constant: return D3D11_BIND_CONSTANT_BUFFER;
+            case kai::RenderBufferType::vertex: default: return D3D11_BIND_VERTEX_BUFFER;
         }
     }();
     buffer_desc.CPUAccessFlags = [usage = info.cpu_usage]() {

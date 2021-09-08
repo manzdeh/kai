@@ -41,7 +41,7 @@ void kai::CommandBuffer::begin(void) {
 }
 
 static KAI_FORCEINLINE void push_command(kai::StackAllocator &allocator, CommandEncoding encoding) {
-    *(static_cast<CommandEncoding *>(allocator.alloc(sizeof(CommandEncoding)))) = encoding;
+    *static_cast<CommandEncoding *>(allocator.alloc(sizeof(CommandEncoding))) = encoding;
 }
 
 void kai::CommandBuffer::end(void) {
@@ -64,10 +64,12 @@ void kai::CommandBuffer::draw(Uint32 vertex_count, Uint32 starting_index) {
     PUSH_TO_COMMAND_BUFFER(command);
 }
 
-void kai::CommandBuffer::bind_buffer(kai::RenderBuffer &buffer) {
+void kai::CommandBuffer::bind_buffer(kai::RenderBuffer &buffer, kai::RenderBufferType type, kai::ShaderType shader_type) {
     CommandEncodingData::BindBuffer command = {
         CommandEncoding::bind_buffer,
-        &buffer
+        &buffer,
+        type,
+        shader_type
     };
 
     PUSH_TO_COMMAND_BUFFER(command);

@@ -36,6 +36,8 @@ union CommandEncodingData {
     struct BindBuffer {
         COMMAND_DEFAULT_MEMBERS;
         kai::RenderBuffer *buffer;
+        kai::RenderBufferType type;
+        kai::ShaderType shader_type;
     } bind_buffer;
 };
 

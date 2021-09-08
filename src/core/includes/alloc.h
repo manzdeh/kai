@@ -46,7 +46,7 @@ namespace kai {
             return static_cast<T *>(alloc(sizeof(T), out_marker, elem_count));
         }
 
-        template<typename T, typename U, typename ...ARGS>
+        template<typename T, typename U, typename...ARGS>
         T * alloc(StackMarker *out_marker = nullptr, Uint32 elem_count = 1, ARGS &&...args) {
             T *obj = alloc<T>(out_marker, elem_count);
             new(obj) U(std::forward<ARGS>(args)...);

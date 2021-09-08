@@ -53,18 +53,19 @@ namespace kai {
         read_write,
     };
 
+    enum class RenderBufferType {
+        vertex,
+        index,
+        constant
+    };
+
     struct RenderBufferInfo {
         const void *data;
         size_t byte_size;
 
         Uint32 stride;
 
-        enum class Type {
-            vertex_buffer,
-            index_buffer,
-            constant_buffer
-        } type;
-
+        RenderBufferType type;
         RenderCPUUsage cpu_usage;
         RenderResourceUsage resource_usage;
     };
@@ -138,7 +139,8 @@ namespace kai {
 
         void KAI_API draw(Uint32 vertex_count, Uint32 starting_index = 0);
 
-        void KAI_API bind_buffer(RenderBuffer &buffer);
+        void KAI_API bind_buffer(RenderBuffer &buffer, RenderBufferType type,
+                                 ShaderType shader_type = ShaderType::vertex);
 
         void KAI_API clear_color(void);
         void KAI_API clear_depth(void);
