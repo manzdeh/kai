@@ -132,20 +132,20 @@ namespace kai {
         KAI_API explicit CommandBuffer(void) = default;
         KAI_API explicit CommandBuffer(Uint32 command_count);
 
-        void KAI_API destroy(void);
+        KAI_API void destroy(void);
 
-        void KAI_API begin(void);
-        void KAI_API end(void);
+        KAI_API void begin(void);
+        KAI_API void end(void);
 
-        void KAI_API draw(Uint32 vertex_count, Uint32 starting_index = 0);
+        KAI_API void draw(Uint32 vertex_count, Uint32 starting_index = 0);
 
-        void KAI_API bind_buffer(RenderBuffer &buffer, RenderBufferType type,
+        KAI_API void bind_buffer(RenderBuffer &buffer, RenderBufferType type,
                                  ShaderType shader_type = ShaderType::vertex);
 
-        void KAI_API clear_color(void);
-        void KAI_API clear_depth(void);
-        void KAI_API clear_stencil(void);
-        void KAI_API clear_depth_stencil(void);
+        KAI_API void clear_color(void);
+        KAI_API void clear_depth(void);
+        KAI_API void clear_stencil(void);
+        KAI_API void clear_depth_stencil(void);
 
         const void * get_data(void) const {
             return allocator.get_data();
@@ -157,8 +157,8 @@ namespace kai {
 
     // Abstraction for both the GPU and rendering API
     struct RenderDevice {
-        static KAI_API RenderDevice * init_device(void);
-        static KAI_API RenderDevice * init_device(Uint32 id);
+        KAI_API static RenderDevice * init_device(void);
+        KAI_API static RenderDevice * init_device(Uint32 id);
 
         virtual void destroy(void) = 0;
 

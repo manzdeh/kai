@@ -17,6 +17,7 @@
 
 #include "../../core/kai.cpp"
 #include "win32_dx11.cpp"
+#include "win32_fileio.cpp"
 #include "win32_input.cpp"
 
 // NOTE: Temporary

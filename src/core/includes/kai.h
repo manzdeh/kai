@@ -7,6 +7,7 @@
 #define KAI_ENGINE_H
 
 #include "alloc.h"
+#include "fileio.h"
 #include "input.h"
 #include "math.h"
 #include "render.h"
