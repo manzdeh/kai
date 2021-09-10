@@ -214,80 +214,94 @@ namespace kai {
     }
 
     union Mat4x4 {
+        Mat4x4(void) = default;
+
         // Matrices need to be provided in row-major order. This makes the
         // interface more straightforward to use. Internally they're
         // stored in column-major order to avoid having to transpose them
         // before sending them to the GPU.
-        static Mat4x4 init_from_buffer(const Float32 *buffer) {
-            return {
-                buffer[0], buffer[1], buffer[2], buffer[3],
-                buffer[4], buffer[5], buffer[6], buffer[7],
-                buffer[8], buffer[9], buffer[10], buffer[11],
-                buffer[12], buffer[13], buffer[14], buffer[15]
-            };
+        Mat4x4(const Float32 (&buffer)[16]) {
+            m00 = buffer[0]; m10 = buffer[1]; m20 = buffer[2]; m30 = buffer[3];
+            m01 = buffer[4]; m11 = buffer[5]; m21 = buffer[6]; m31 = buffer[7];
+            m02 = buffer[8]; m12 = buffer[9]; m22 = buffer[10]; m32 = buffer[11];
+            m03 = buffer[12]; m13 = buffer[13]; m23 = buffer[14]; m33 = buffer[15];
         }
 
         static Mat4x4 identity(void) {
-            return {
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            };
+            Mat4x4 m;
+
+            m.m00 = m.m11 = m.m22 = m.m33 = 1.0f;
+
+            return m;
         }
 
         static Mat4x4 scale(Float32 x = 1.0f, Float32 y = 1.0f, Float32 z = 1.0f) {
-            return {
-                   x, 0.0f, 0.0f, 0.0f,
-                0.0f,    y, 0.0f, 0.0f,
-                0.0f, 0.0f,    z, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            };
+            Mat4x4 m;
+
+            m.m00 = x;
+            m.m11 = y;
+            m.m22 = z;
+            m.m33 = 1.0f;
+
+            return m;
         }
 
         static Mat4x4 translate(Float32 x = 0.0f, Float32 y = 0.0f, Float32 z = 0.0f) {
-            return {
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                   x,    y,    z, 1.0f
-            };
+            Mat4x4 m = identity();
+
+            m.m30 = x;
+            m.m31 = y;
+            m.m32 = z;
+
+            return m;
         }
 
         static Mat4x4 rotate_x(Float32 angle) {
             Float32 c = cosine(angle);
             Float32 s = sine(angle);
 
-            return {
-                1.0f, 0.0f, 0.0f, 0.0f ,
-                0.0f,    c,    s, 0.0f,
-                0.0f,   -s,    c, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            };
+            Mat4x4 m;
+
+            m.m00 = 1.0f;
+            m.m11 = c;
+            m.m12 = s;
+            m.m21 = -s;
+            m.m22 = c;
+            m.m33 = 1.0f;
+
+            return m;
         }
 
         static Mat4x4 rotate_y(Float32 angle) {
             Float32 c = cosine(angle);
             Float32 s = sine(angle);
 
-            return {
-                   c, 0.0f,   -s, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                   s, 0.0f,    c, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            };
+            Mat4x4 m;
+
+            m.m00 = c;
+            m.m02 = -s;
+            m.m11 = 1.0f;
+            m.m20 = s;
+            m.m22 = c;
+            m.m33 = 1.0f;
+
+            return m;
         }
 
         static Mat4x4 rotate_z(Float32 angle) {
             Float32 c = cosine(angle);
             Float32 s = sine(angle);
 
-            return {
-                   c,    s, 0.0f, 0.0f,
-                  -s,    c, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            };
+            Mat4x4 m;
+
+            m.m00 = c;
+            m.m01 = s;
+            m.m10 = -s;
+            m.m11 = c;
+            m.m22 = 1.0f;
+            m.m33 = 1.0f;
+
+            return m;
         }
 
         static Mat4x4 look_at_rh(const Vec4 &eye, const Vec4 &target, const Vec4 &up = Vec4::up()) {
@@ -301,12 +315,12 @@ namespace kai {
 
             u = cross(f, s);
 
-            return {
-                             s.x,                u.x,               f.x, 0.0f,
-                             s.y,                u.y,               f.y, 0.0f,
-                             s.z,                u.z,               f.z, 0.0f,
-                -kai::dot(s, eye), -kai::dot(u, eye), -kai::dot(f, eye), 1.0f
-            };
+            return Mat4x4({
+                s.x,  s.y,  s.z, -kai::dot(s, eye),
+                u.x,  u.y,  u.z, -kai::dot(u, eye),
+                f.x,  f.y,  f.z, -kai::dot(f, eye),
+                0.0f, 0.0f, 0.0f,             1.0f
+            });
         }
 
         static Mat4x4 ortho(Float32 left, Float32 right, Float32 bottom,
@@ -315,23 +329,23 @@ namespace kai {
             Float32 diff_u = top - bottom;
             Float32 diff_f = far_z - near_z;
 
-            return {
+            return Mat4x4({
                              2.0f / diff_s,                       0.0f,                         0.0f, 0.0f,
                                       0.0f,              2.0f / diff_u,                         0.0f, 0.0f,
                                       0.0f,                       0.0f,               -2.0f / diff_f, 0.0f,
                 -((right + left) / diff_s), -((top + bottom) / diff_u), -((far_z + near_z) / diff_f), 1.0f
-            };
+            });
         }
 
         static Mat4x4 perspective(Float32 fov, Float32 aspect_ratio, Float32 near_z, Float32 far_z) {
             Float32 t = 1.0f / tangent(fov * 0.5f);
 
-            return {
+            return Mat4x4({
                 t / aspect_ratio, 0.0f,                                0.0f,                                     0.0f,
                             0.0f,    t,                                0.0f,                                     0.0f,
                             0.0f, 0.0f, (far_z + near_z) / (near_z - far_z), 2.0f * far_z * near_z / (near_z - far_z),
                             0.0f, 0.0f,                               -1.0f,                                     0.0f
-            };
+            });
         }
 
         void transpose(void) {
@@ -349,7 +363,7 @@ namespace kai {
             Float32 m20, m21, m22, m23;
             Float32 m30, m31, m32, m33;
         };
-        Float32 m[4][4];
+        Float32 m[4][4] = {};
     };
 
     Mat4x4 operator*(const Mat4x4 &a, const Mat4x4 &b) {

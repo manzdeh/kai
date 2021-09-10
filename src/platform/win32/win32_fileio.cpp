@@ -22,6 +22,8 @@ kai::FileHandle kai::open_file(const char *path, FileFlags access_flags, FileFla
     MAP_FLAG(share_flags, FILE_WRITE, share, FILE_SHARE_WRITE);
     MAP_FLAG(share_flags, FILE_DELETE, share, FILE_SHARE_DELETE);
 
+#undef MAP_FLAG
+
     // TODO: Change to CreateFileW once this takes a UTF-8 string
     HANDLE f = CreateFileA(path, access, share, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     return (f != INVALID_HANDLE_VALUE) ? static_cast<kai::FileHandle>(f) : nullptr;
