@@ -3,12 +3,22 @@
  * See LICENSE for details
  **************************************************/
 
+#include <windows.h>
 #include "win32_fileio.h"
+
+static size_t get_file_size(kai::FileHandle file) {
+    KAI_ASSERT(file);
+
+    LARGE_INTEGER size;
+    GetFileSizeEx(file, &size);
+
+    return static_cast<size_t>(size.QuadPart);
+}
 
 kai::FileHandle kai::open_file(const char *path, FileFlags access_flags, FileFlags share_flags) {
 #define MAP_FLAG(flags_var, kai_flag, win_flag, mapping) \
     do { \
-        if((flags_var) & kai::FileFlags::kai_flag) { \
+        if((flags_var) & kai::kai_flag) { \
             win_flag |= mapping; \
         } \
     } while(0)
@@ -29,12 +39,31 @@ kai::FileHandle kai::open_file(const char *path, FileFlags access_flags, FileFla
     return (f != INVALID_HANDLE_VALUE) ? static_cast<kai::FileHandle>(f) : nullptr;
 }
 
-void kai::close_file(kai::FileHandle *file) {
+void kai::close_file(kai::FileHandle file) {
     if(file) {
-        if(*file) {
-            CloseHandle(static_cast<HANDLE>(file));
+        CloseHandle(static_cast<HANDLE>(file));
+    }
+}
+
+size_t kai::get_file_size(kai::FileHandle file) {
+    if(file) {
+        return ::get_file_size(file);
+    }
+
+    return 0;
+}
+
+bool kai::read_file(kai::FileHandle file, void *buffer, size_t byte_count) {
+    if(file && buffer) {
+        size_t size = ::get_file_size(file);
+        if(byte_count > size) {
+            return false;
         }
 
-        *file = nullptr;
+        DWORD bytes_read;
+        BOOL retval = ReadFile(file, buffer, static_cast<DWORD>(((byte_count > 0) ? byte_count : size)), &bytes_read, nullptr);
+        return (retval) ? retval : GetLastError() == ERROR_IO_PENDING;
     }
+
+    return false;
 }

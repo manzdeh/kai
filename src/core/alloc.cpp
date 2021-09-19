@@ -14,8 +14,14 @@
 
 static MemoryManager memory_manager;
 
-static inline void reset_memory_manager(void) {
+static void reset_memory_manager(void) {
     memset(&memory_manager, 0, sizeof(memory_manager));
+}
+
+template<typename T>
+static void destroy_allocator(T *allocator, MemoryHandle &handle) {
+    MemoryManager::free_blocks(handle);
+    memset(allocator, 0, sizeof(*allocator));
 }
 
 static KAI_FORCEINLINE void get_initial_header_index(Uint64 &index, Uint64 &bit, const Uint64 *start_id = nullptr) {
@@ -161,8 +167,7 @@ kai::StackAllocator::StackAllocator(Uint32 bytes, Bool32 aligned_allocs) : shoul
 }
 
 void kai::StackAllocator::destroy(void) {
-    MemoryManager::free_blocks(handle);
-    memset(this, 0, sizeof(*this));
+    destroy_allocator(this, handle);
 }
 
 void * kai::StackAllocator::alloc(Uint32 elem_size, StackMarker *out_marker, Uint32 elem_count) {
@@ -230,8 +235,7 @@ kai::PoolAllocator::PoolAllocator(Uint32 elem_size, Uint32 count) :
 }
 
 void kai::PoolAllocator::destroy(void) {
-    MemoryManager::free_blocks(handle);
-    memset(this, 0, sizeof(*this));
+    destroy_allocator(this, handle);
 }
 
 void * kai::PoolAllocator::alloc(void) {
@@ -267,6 +271,29 @@ void kai::PoolAllocator::clear(void) {
     }
 
     node->next = nullptr;
+}
+
+// -------------------------------------------------- Arena Allocator -------------------------------------------------- //
+kai::ArenaAllocator::ArenaAllocator(Uint32 bytes) {
+    if(!MemoryManager::reserve_blocks(handle, bytes)) {
+        // TODO: Error logging
+    }
+}
+
+void kai::ArenaAllocator::destroy(void) {
+    destroy_allocator(this, handle);
+}
+
+Uint32 kai::ArenaAllocator::get_size(void) {
+    return static_cast<Uint32>(handle.get_size());
+}
+
+void * kai::ArenaAllocator::get_buffer(void) {
+    return MemoryManager::get_ptr(handle);
+}
+
+void kai::ArenaAllocator::clear(void) {
+    memset(get_buffer(), 0, get_size());
 }
 
 #undef BLOCK_SIZE

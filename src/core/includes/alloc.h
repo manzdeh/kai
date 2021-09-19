@@ -12,16 +12,17 @@
 #include <new>
 #include <utility>
 
-struct MemoryManager;
 namespace kai {
     struct StackAllocator;
     struct PoolAllocator;
+    struct ArenaAllocator;
 }
 
 struct MemoryHandle {
     friend struct MemoryManager;
     friend struct kai::StackAllocator;
     friend struct kai::PoolAllocator;
+    friend struct kai::ArenaAllocator;
 
 private:
     Uint64 get_size(void) const;
@@ -89,6 +90,19 @@ namespace kai {
         PoolNode *head = nullptr;
         Uint32 element_count = 0;
         Uint32 chunk_size = 0;
+    };
+
+    struct ArenaAllocator {
+        KAI_API ArenaAllocator(Uint32 bytes);
+
+        KAI_API void destroy(void);
+
+        KAI_API Uint32 get_size(void);
+        KAI_API void * get_buffer(void);
+        KAI_API void clear(void);
+
+    private:
+        MemoryHandle handle;
     };
 }
 
