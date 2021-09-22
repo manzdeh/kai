@@ -12,6 +12,10 @@
 #include "input.cpp"
 #include "render.cpp"
 
+// TODO: Temporarily building the glTF parser as part of the core engine. This needs
+// to be built separately eventually, because the tools are meant for offline use
+#include "../tools/gltf2_parser/gltf2_parser.cpp"
+
 #define STUB_NAME_HELPER(name) name##_stub
 #define STUB_NAME(name) STUB_NAME_HELPER(name)
 #define DEF_STUB_FUNC(name) KAI_GAME_CALLBACK_FUNC(STUB_NAME(name))
@@ -49,6 +53,13 @@ void init_engine(void) {
     platform_setup_game_callbacks(game_manager.callbacks);
 
     game_manager.callbacks.init();
+
+    kai::FileHandle f = kai::open_file("C:/Users/Amanch/Desktop/test_gltf.gltf");
+    static char buffer[9999];
+    kai::read_file(f, buffer);
+    kai::close_file(f);
+
+    kai::gltf2::load(buffer);
 }
 
 bool tick_engine(void) {
