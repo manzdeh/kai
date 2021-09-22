@@ -53,13 +53,6 @@ void init_engine(void) {
     platform_setup_game_callbacks(game_manager.callbacks);
 
     game_manager.callbacks.init();
-
-    kai::FileHandle f = kai::open_file("C:/Users/Amanch/Desktop/test_gltf.gltf");
-    static char buffer[9999];
-    kai::read_file(f, buffer);
-    kai::close_file(f);
-
-    kai::gltf2::load(buffer);
 }
 
 bool tick_engine(void) {
