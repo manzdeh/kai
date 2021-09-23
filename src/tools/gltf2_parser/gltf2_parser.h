@@ -24,8 +24,8 @@ namespace kai {
         };
 
         struct Token {
-            Token(TokenType type, std::string &&str) : type(type), value(std::move(str)) {
-            }
+            Token(TokenType type) : type(type) {}
+            Token(TokenType type, std::string &&str) : type(type), value(std::move(str)) {}
 
             TokenType type;
             std::string value;

@@ -29,6 +29,8 @@ namespace kai::gltf2 {
             }
 
             size_t j = i;
+            size_t literal_start = 0;
+            bool is_literal = false;
             for(; j < size; j++) {
                 if(is_delimiter(buffer[j])) {
                     break;
@@ -44,16 +46,34 @@ namespace kai::gltf2 {
                     case ':': token = TokenType::colon; break;
                     case ',': token = TokenType::comma; break;
                     case '"': token = TokenType::double_quote; break;
-                    default: token = TokenType::literal; break;
+                    default:
+                        if(!is_literal) {
+                            literal_start = j;
+                        }
+                        is_literal = true;
+                        token = TokenType::literal;
+                        break;
                 }
 
-                tokens.push_back({token, ""});
+                if(is_literal && token != TokenType::literal) {
+                    is_literal = false;
+                    tokens.push_back({TokenType::literal, std::string(&buffer[literal_start], j - literal_start)});
+                }
+
+                if(!is_literal) {
+                    tokens.push_back({token, std::string(&buffer[j], 1)});
+                }
             }
+
+            if(is_literal) {
+                tokens.push_back({TokenType::literal, std::string(&buffer[literal_start], j - literal_start)});
+            }
+
             j--; // Decrement because we're on a delimiter
 
             i = j;
         }
 
-        tokens.push_back({TokenType::eof, ""});
+        tokens.push_back({TokenType::eof});
     }
 }
