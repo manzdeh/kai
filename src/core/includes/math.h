@@ -33,20 +33,15 @@ namespace kai {
         rhs = temp;
     }
 
-    constexpr Float32 pi(void) {
-        return 3.14159265359f;
-    }
-
-    constexpr Float32 pi2(void) {
-        return 6.28318530718f;
-    }
+    inline constexpr Float32 pi = 3.14159265359f;
+    inline constexpr Float32 pi2 = 6.28318530718f;
 
     constexpr Float32 deg_to_rad(Float32 deg) {
-        return (deg / 180.0f) * pi();
+        return (deg / 180.0f) * pi;
     }
 
     constexpr Float32 rad_to_deg(Float32 rad) {
-        return (rad / pi()) * 180.0f;
+        return (rad / pi) * 180.0f;
     }
 
     bool nearly_equal(Float32 a, Float32 b) {
@@ -338,13 +333,13 @@ namespace kai {
         }
 
         static Mat4x4 perspective(Float32 fov, Float32 aspect_ratio, Float32 near_z, Float32 far_z) {
-            Float32 t = 1.0f / tangent(fov * 0.5f);
+            Float32 t = tangent(fov * 0.5f);
 
             return Mat4x4({
-                t / aspect_ratio, 0.0f,                                0.0f,                                     0.0f,
-                            0.0f,    t,                                0.0f,                                     0.0f,
-                            0.0f, 0.0f, (far_z + near_z) / (near_z - far_z), 2.0f * far_z * near_z / (near_z - far_z),
-                            0.0f, 0.0f,                               -1.0f,                                     0.0f
+                1.0f / (aspect_ratio * t),     0.0f,                                0.0f,                                     0.0f,
+                                     0.0f, 1.0f / t,                                0.0f,                                     0.0f,
+                                     0.0f,     0.0f, (far_z + near_z) / (near_z - far_z), 2.0f * far_z * near_z / (near_z - far_z),
+                                     0.0f,     0.0f,                               -1.0f,                                     0.0f
             });
         }
 
