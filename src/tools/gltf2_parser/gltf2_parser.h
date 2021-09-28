@@ -8,10 +8,8 @@
 
 #include <string>
 
-namespace kai {
-    namespace gltf2 {
-        void load(const char *buffer, size_t size = 0);
-    }
+namespace kai::gltf2 {
+    void load(const char *buffer, size_t size = 0);
 }
 
 

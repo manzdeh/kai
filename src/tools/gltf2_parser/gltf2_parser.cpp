@@ -5,16 +5,14 @@
 
 #include "gltf2_parser.h"
 
+#include <array>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <vector>
 
-static inline bool is_delimiter(const char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-}
-
-namespace kai::gltf2 {
-    enum class TokenType {
+struct Token {
+    enum class Type {
         open_brace,
         close_brace,
         open_bracket,
@@ -22,18 +20,23 @@ namespace kai::gltf2 {
         colon,
         comma,
         double_quote,
-        literal,
-
-        eof
+        literal
     };
 
-    struct Token {
-        Token(TokenType type) : type(type) {}
-        Token(TokenType type, std::string &&str) : type(type), value(std::move(str)) {}
+    Token(Type type) : type(type) {}
+    Token(Type type, std::string &&str) : type(type), value(std::move(str)) {}
 
-        TokenType type;
-        std::string value;
-    };
+    Type type;
+    std::string value;
+};
+
+static inline bool is_delimiter(const char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+namespace kai::gltf2 {
+    struct Info;
+    void parse_asset(Info &info, const std::vector<Token> &tokens, size_t &out_index);
 
     struct Scene {
         std::vector<uint32_t> node_indices;
@@ -46,7 +49,7 @@ namespace kai::gltf2 {
                 float scale[3];
                 float translation[3];
             };
-            float matrix[4][4] = {};
+            float matrix[4][4];
         };
         std::vector<uint32_t> child_indices;
         uint32_t mesh_index;
@@ -151,28 +154,28 @@ namespace kai::gltf2 {
                     break;
                 }
 
-                TokenType token;
+                Token::Type token;
 
                 switch(buffer[j]) {
-                    case '{': token = TokenType::open_brace; break;
-                    case '}': token = TokenType::close_brace; break;
-                    case '[': token = TokenType::open_bracket; break;
-                    case ']': token = TokenType::close_bracket; break;
-                    case ':': token = TokenType::colon; break;
-                    case ',': token = TokenType::comma; break;
-                    case '"': token = TokenType::double_quote; break;
+                    case '{': token = Token::Type::open_brace; break;
+                    case '}': token = Token::Type::close_brace; break;
+                    case '[': token = Token::Type::open_bracket; break;
+                    case ']': token = Token::Type::close_bracket; break;
+                    case ':': token = Token::Type::colon; break;
+                    case ',': token = Token::Type::comma; break;
+                    case '"': token = Token::Type::double_quote; break;
                     default:
                         if(!is_literal) {
                             literal_start = j;
                         }
                         is_literal = true;
-                        token = TokenType::literal;
+                        token = Token::Type::literal;
                         break;
                 }
 
-                if(is_literal && token != TokenType::literal) {
+                if(is_literal && token != Token::Type::literal) {
                     is_literal = false;
-                    tokens.push_back({TokenType::literal, std::string(&buffer[literal_start], j - literal_start)});
+                    tokens.push_back({Token::Type::literal, std::string(&buffer[literal_start], j - literal_start)});
                 }
 
                 if(!is_literal) {
@@ -181,7 +184,7 @@ namespace kai::gltf2 {
             }
 
             if(is_literal) {
-                tokens.push_back({TokenType::literal, std::string(&buffer[literal_start], j - literal_start)});
+                tokens.push_back({Token::Type::literal, std::string(&buffer[literal_start], j - literal_start)});
             }
 
             j--; // Decrement because we're on a delimiter
@@ -189,6 +192,127 @@ namespace kai::gltf2 {
             i = j;
         }
 
-        tokens.push_back({TokenType::eof});
+        enum ParseStep {
+            NONE,
+            ASSET,
+            SCENES,
+            NODES,
+            MESHES,
+            ACCESSORS,
+            BUFFER_VIEWS,
+            BUFFERS
+        } parse_step = NONE;
+
+        auto find_matching_property = [](const std::string &name) -> ParseStep {
+            static const std::array<const char *, 7> properties = {
+                "asset",
+                "scenes",
+                "nodes",
+                "meshes",
+                "accessors",
+                "bufferViews",
+                "buffers"
+            };
+
+            auto it = std::find(properties.begin(), properties.end(), name);
+            if(it != properties.end()) {
+#define MAP_PROPERTY(name, retval) if(strcmp(*it, name) == 0) return retval
+
+                MAP_PROPERTY(properties[0], ASSET);
+                MAP_PROPERTY(properties[1], SCENES);
+                MAP_PROPERTY(properties[2], NODES);
+                MAP_PROPERTY(properties[3], MESHES);
+                MAP_PROPERTY(properties[4], ACCESSORS);
+                MAP_PROPERTY(properties[5], BUFFER_VIEWS);
+                MAP_PROPERTY(properties[6], BUFFERS);
+
+#undef MAP_PROPERTY
+            }
+
+            return NONE;
+        };
+
+        Info model_info = {};
+
+        for(size_t i = 0; i < tokens.size(); i++) {
+            const Token &token = tokens[i];
+            switch(parse_step) {
+                case NONE:
+                    if(token.type == Token::Type::literal) {
+                        parse_step = find_matching_property(token.value);
+                    }
+                    break;
+                case ASSET:
+                    parse_asset(model_info, tokens, i);
+                    parse_step = NONE;
+                    if(model_info.version.major != 2) {
+                        fprintf(stderr, "Only glTF 2.0 files are supported!\n");
+                        goto end;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+end:
+        ;
+    }
+
+    void find_next(Token::Type type, const std::vector<Token> &tokens, size_t &out_index) {
+        for(size_t i = out_index + 1; i < tokens.size(); i++) {
+            if(tokens[i].type == type) {
+                out_index = i;
+                return;
+            }
+        }
+    }
+
+    void parse_asset(Info &info, const std::vector<Token> &tokens, size_t &out_index) {
+        find_next(Token::Type::open_brace, tokens, out_index);
+        size_t i = out_index;
+
+        int32_t scope_depth = 0;
+
+        for(; i < tokens.size(); i++) {
+            const Token &token = tokens[i];
+
+            switch(token.type) {
+                case Token::Type::open_brace:
+                    scope_depth++;
+                    break;
+                case Token::Type::close_brace:
+                    scope_depth--;
+                    break;
+                default:
+                    break;
+            }
+
+            if(scope_depth == 0) {
+                break;
+            }
+
+            if(token.type == Token::Type::literal && token.value == "version") {
+                find_next(Token::Type::literal, tokens, i);
+
+                size_t len = tokens[i].value.length();
+
+                const char *delims = ".";
+
+                char *value = reinterpret_cast<char *>(malloc(len + 1));
+                value[len] = '\0';
+                const char *source = tokens[i].value.c_str();
+                memcpy(value, source, len);
+
+                char *tok = strtok(value, delims);
+                info.version.major = atol(tok);
+                tok = strtok(nullptr, delims);
+                info.version.minor = atol(tok);
+
+                free(value);
+            }
+        }
+
+        out_index = i;
     }
 }
