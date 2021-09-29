@@ -5,10 +5,12 @@
 
 #include "gltf2_parser.h"
 
-#include <array>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <array>
+#include <string>
 #include <vector>
 
 struct Token {
@@ -37,6 +39,7 @@ static inline bool is_delimiter(const char c) {
 namespace kai::gltf2 {
     struct Info;
     void parse_asset(Info &info, const std::vector<Token> &tokens, size_t &out_index);
+    void parse_scenes(Info &info, const std::vector<Token> &tokens, size_t &out_index);
 
     struct Scene {
         std::vector<uint32_t> node_indices;
@@ -136,7 +139,6 @@ namespace kai::gltf2 {
 
         std::vector<Token> tokens;
 
-        // Lexer
         for(size_t i = 0; i < size; i++) {
             if(buffer[i] == '\0') {
                 break;
@@ -204,6 +206,7 @@ namespace kai::gltf2 {
         } parse_step = NONE;
 
         auto find_matching_property = [](const std::string &name) -> ParseStep {
+            // TODO: Handle the "scene" property as well if scenes are going to be supported
             static const std::array<const char *, 7> properties = {
                 "asset",
                 "scenes",
@@ -238,21 +241,27 @@ namespace kai::gltf2 {
             const Token &token = tokens[i];
             switch(parse_step) {
                 case NONE:
-                    if(token.type == Token::Type::literal) {
-                        parse_step = find_matching_property(token.value);
+                    if(token.type == Token::Type::literal && ((parse_step = find_matching_property(token.value)) != NONE)) {
+                        continue;
                     }
                     break;
                 case ASSET:
                     parse_asset(model_info, tokens, i);
-                    parse_step = NONE;
-                    if(model_info.version.major != 2) {
+                    if(model_info.version.major != 2 && model_info.version.minor != 0) {
                         fprintf(stderr, "Only glTF 2.0 files are supported!\n");
                         goto end;
                     }
                     break;
+                case SCENES:
+                    parse_scenes(model_info, tokens, i);
+                    break;
+                case NODES:
+                    break;
                 default:
                     break;
             }
+
+            parse_step = NONE;
         }
 
 end:
@@ -266,6 +275,19 @@ end:
                 return;
             }
         }
+    }
+
+    char * copy_to_str(const std::string &source) {
+        static char str_buffer[9999];
+        size_t len = source.length();
+
+        if(len < (sizeof(str_buffer) - 1)) {
+            memcpy(str_buffer, source.c_str(), len);
+            str_buffer[len] = '\0';
+            return str_buffer;
+        }
+
+        return nullptr;
     }
 
     void parse_asset(Info &info, const std::vector<Token> &tokens, size_t &out_index) {
@@ -295,21 +317,50 @@ end:
             if(token.type == Token::Type::literal && token.value == "version") {
                 find_next(Token::Type::literal, tokens, i);
 
-                size_t len = tokens[i].value.length();
-
                 const char *delims = ".";
 
-                char *value = reinterpret_cast<char *>(malloc(len + 1));
-                value[len] = '\0';
-                const char *source = tokens[i].value.c_str();
-                memcpy(value, source, len);
+                char *str = copy_to_str(tokens[i].value);
+                if(str) {
+                    char *tok = strtok(str, delims);
+                    info.version.major = atol(tok);
+                    tok = strtok(nullptr, delims);
+                    info.version.minor = atol(tok);
+                }
+            }
+        }
 
-                char *tok = strtok(value, delims);
-                info.version.major = atol(tok);
-                tok = strtok(nullptr, delims);
-                info.version.minor = atol(tok);
+        out_index = i;
+    }
 
-                free(value);
+    void parse_scenes(Info &info, const std::vector<Token> &tokens, size_t &out_index) {
+        size_t i = out_index;
+        size_t scene_index = 0;
+
+        for(; i < tokens.size(); i++) {
+            if(tokens[i].type == Token::Type::close_bracket) {
+                break;
+            }
+
+            if(tokens[i].type == Token::Type::open_brace) {
+                info.scenes.push_back({});
+
+                while(tokens[i].type != Token::Type::close_brace) {
+                    if(tokens[i].type == Token::Type::literal && tokens[i].value == "nodes") {
+                        find_next(Token::Type::open_bracket, tokens, i);
+
+                        while(tokens[i].type != Token::Type::close_bracket) {
+                            if(tokens[i].type == Token::Type::literal) {
+                                info.scenes[scene_index].node_indices.push_back(atol(tokens[i].value.c_str()));
+                            }
+
+                            i++;
+                        }
+                    }
+
+                    i++;
+                }
+
+                scene_index++;
             }
         }
 
