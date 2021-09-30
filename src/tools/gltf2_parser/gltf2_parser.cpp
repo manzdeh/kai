@@ -266,6 +266,7 @@ namespace kai::gltf2 {
                     p.parse_scenes();
                     break;
                 case NODES:
+                    p.parse_nodes();
                     break;
                 default:
                     break;
@@ -371,6 +372,29 @@ end:
         }
     }
 
+    // TODO: This is very similar to parse_scenes(), so it makes sense to create some helper functions to reduce the amount of code duplication
     void Parser::parse_nodes(void) {
+        size_t node_index = 0;
+
+        for(; index < tokens.size(); index++) {
+            if(tokens[index].type == Token::Type::close_bracket) {
+                break;
+            }
+
+            if(tokens[index].type == Token::Type::open_brace) {
+                info.nodes.push_back({});
+
+                while(tokens[index].type != Token::Type::close_brace) {
+                    if(tokens[index].type == Token::Type::literal && tokens[index].value == "mesh") {
+                        find_next(Token::Type::literal);
+                        info.nodes[node_index].mesh_index = atol(tokens[index].value.c_str());
+                    }
+
+                    index++;
+                }
+
+                node_index++;
+            }
+        }
     }
 }
