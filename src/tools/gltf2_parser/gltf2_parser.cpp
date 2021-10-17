@@ -151,15 +151,8 @@ namespace kai::gltf2 {
 
         Parser(const std::vector<Token> &tokens) : tokens(tokens) {
             top_level_nodes.reserve(top_level_nodes_count);
-            uint32_t scope_depth = 0;
             for(size_t i = 0; i < tokens.size(); i++) {
-                switch(tokens[i].type) {
-                    case Token::Type::open_brace: scope_depth++; break;
-                    case Token::Type::close_brace: scope_depth--; break;
-                    default: break;
-                }
-
-                if(scope_depth == 1 && tokens[i].type == Token::Type::literal) {
+                if(tokens[i].type == Token::Type::literal) {
                     auto it = std::find(properties.begin(), properties.end(), tokens[i].value);
                     Token::Type open_type;
                     std::pair<size_t, size_t> range;
