@@ -11,6 +11,8 @@
 
 #include <array>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 struct Token {
@@ -34,6 +36,19 @@ struct Token {
 
 static inline bool is_delimiter(const char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+static char * copy_to_str(const std::string &source) {
+    static char str_buffer[9999];
+    size_t len = source.length();
+
+    if(len < (sizeof(str_buffer) - 1)) {
+        memcpy(str_buffer, source.c_str(), len);
+        str_buffer[len] = '\0';
+        return str_buffer;
+    }
+
+    return nullptr;
 }
 
 namespace kai::gltf2 {
@@ -131,9 +146,35 @@ namespace kai::gltf2 {
     };
 
     struct Parser {
-        Parser(const std::vector<Token> &tokens) : tokens(tokens) {}
+        static constexpr uint32_t top_level_nodes_count = 7;
+        static const std::array<const char *, Parser::top_level_nodes_count> properties;
 
-        void find_next(Token::Type type);
+        Parser(const std::vector<Token> &tokens) : tokens(tokens) {
+            top_level_nodes.reserve(top_level_nodes_count);
+            uint32_t scope_depth = 0;
+            for(size_t i = 0; i < tokens.size(); i++) {
+                switch(tokens[i].type) {
+                    case Token::Type::open_brace: scope_depth++; break;
+                    case Token::Type::close_brace: scope_depth--; break;
+                    default: break;
+                }
+
+                if(scope_depth == 1 && tokens[i].type == Token::Type::literal) {
+                    auto it = std::find(properties.begin(), properties.end(), tokens[i].value);
+                    Token::Type open_type;
+                    std::pair<size_t, size_t> range;
+
+                    if(it != properties.end() && get_open_type(tokens[i], open_type) && find_scope_depth(range, i, open_type)) {
+                        top_level_nodes.insert({tokens[i].value, range});
+                        i = range.second;
+                    }
+                }
+            }
+        }
+
+        bool find_next(Token::Type type, size_t &out_index);
+        bool get_open_type(const Token &tok, Token::Type &out_type) const;
+        bool find_scope_depth(std::pair<size_t, size_t> &out_indices, size_t index_start, Token::Type open_type) const;
 
         void parse_asset(void);
         void parse_scenes(void);
@@ -141,7 +182,19 @@ namespace kai::gltf2 {
 
         Info info;
         const std::vector<Token> &tokens;
-        size_t index = 0;
+
+        std::unordered_map<std::string, std::pair<size_t, size_t>> top_level_nodes;
+    };
+
+    // TODO: Handle the "scene" property as well if scenes are going to be supported
+    const std::array<const char *, Parser::top_level_nodes_count> Parser::properties = {
+        "asset",
+        "scenes",
+        "nodes",
+        "meshes",
+        "accessors",
+        "bufferViews",
+        "buffers"
     };
 
     void load(const char *buffer, size_t size) {
@@ -204,196 +257,141 @@ namespace kai::gltf2 {
             i = j;
         }
 
-        enum ParseStep {
-            NONE,
-            ASSET,
-            SCENES,
-            NODES,
-            MESHES,
-            ACCESSORS,
-            BUFFER_VIEWS,
-            BUFFERS
-        } parse_step = NONE;
-
-        auto find_matching_property = [](const std::string &name) -> ParseStep {
-            // TODO: Handle the "scene" property as well if scenes are going to be supported
-            static const std::array<const char *, 7> properties = {
-                "asset",
-                "scenes",
-                "nodes",
-                "meshes",
-                "accessors",
-                "bufferViews",
-                "buffers"
-            };
-
-            auto it = std::find(properties.begin(), properties.end(), name);
-            if(it != properties.end()) {
-#define MAP_PROPERTY(name, retval) if(strcmp(*it, name) == 0) return retval
-
-                MAP_PROPERTY(properties[0], ASSET);
-                MAP_PROPERTY(properties[1], SCENES);
-                MAP_PROPERTY(properties[2], NODES);
-                MAP_PROPERTY(properties[3], MESHES);
-                MAP_PROPERTY(properties[4], ACCESSORS);
-                MAP_PROPERTY(properties[5], BUFFER_VIEWS);
-                MAP_PROPERTY(properties[6], BUFFERS);
-
-#undef MAP_PROPERTY
-            }
-
-            return NONE;
-        };
-
         Parser p(tokens);
 
-        for(; p.index < p.tokens.size(); p.index++) {
-            const Token &token = p.tokens[p.index];
-            switch(parse_step) {
-                case NONE:
-                    if(token.type == Token::Type::literal && ((parse_step = find_matching_property(token.value)) != NONE)) {
-                        continue;
-                    }
-                    break;
-                case ASSET:
-                    p.parse_asset();
-                    if(p.info.version.major != 2 && p.info.version.minor != 0) {
-                        fprintf(stderr, "Only glTF 2.0 files are supported!\n");
-                        goto end;
-                    }
-                    break;
-                case SCENES:
-                    p.parse_scenes();
-                    break;
-                case NODES:
-                    p.parse_nodes();
-                    break;
-                default:
-                    break;
-            }
+        p.parse_asset();
 
-            parse_step = NONE;
+        if(p.info.version.major == 2 && p.info.version.minor == 0) {
+            p.parse_scenes();
+            p.parse_nodes();
+        } else {
+            fprintf(stderr, "Only glTF 2.0 files are supported!\n");
         }
-
-end:
-        ;
     }
 
-    void Parser::find_next(Token::Type type) {
-        index++;
+    bool Parser::find_next(Token::Type type, size_t &out_index) {
+        size_t index = out_index + 1;
         for(; index < tokens.size(); index++) {
             if(tokens[index].type == type) {
-                return;
+                out_index = index;
+                return true;
             }
         }
+
+        return false;
     }
 
-    char * copy_to_str(const std::string &source) {
-        static char str_buffer[9999];
-        size_t len = source.length();
+    bool Parser::get_open_type(const Token &tok, Token::Type &out_type) const {
+        if(tok.type == Token::Type::literal) {
+#define MAP_OPEN_TYPE(name, type) \
+            do { \
+                if(strcmp(name, tok.value.c_str()) == 0) { \
+                    out_type = type; \
+                    return true; \
+                } \
+            } while(0)
 
-        if(len < (sizeof(str_buffer) - 1)) {
-            memcpy(str_buffer, source.c_str(), len);
-            str_buffer[len] = '\0';
-            return str_buffer;
+            MAP_OPEN_TYPE("asset", Token::Type::open_brace);
+            MAP_OPEN_TYPE("scenes", Token::Type::open_bracket);
+            MAP_OPEN_TYPE("nodes", Token::Type::open_bracket);
+            MAP_OPEN_TYPE("meshes", Token::Type::open_bracket);
+            MAP_OPEN_TYPE("accessors", Token::Type::open_bracket);
+            MAP_OPEN_TYPE("bufferViews", Token::Type::open_bracket);
+            MAP_OPEN_TYPE("buffers", Token::Type::open_bracket);
+#undef MAP_OPEN_TYPE
         }
 
-        return nullptr;
+        return false;
+    }
+
+
+    bool Parser::find_scope_depth(std::pair<size_t, size_t> &out_indices, size_t index_start, Token::Type open_type) const {
+        bool is_open_brace = open_type == Token::Type::open_brace;
+
+        if(is_open_brace || open_type == Token::Type::open_bracket) {
+            Token::Type close_type = (is_open_brace) ? Token::Type::close_brace : Token::Type::close_bracket;
+            int32_t depth = 0;
+            bool start_set = false;
+
+            size_t scope_start = 0;
+
+            for(size_t i = index_start; i < tokens.size(); i++) {
+                if(tokens[i].type == open_type) {
+                    depth++;
+                    if(!start_set) {
+                        scope_start = i;
+                        start_set = true;
+                    }
+                } else if(tokens[i].type == close_type) {
+                    depth--;
+                }
+
+                if(depth == 0 && tokens[i].type == close_type) {
+                    out_indices = std::make_pair(scope_start, i);
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     void Parser::parse_asset(void) {
-        find_next(Token::Type::open_brace);
+        auto it = top_level_nodes.find("asset");
 
-        int32_t scope_depth = 0;
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::literal && tokens[i].value == "version" && find_next(Token::Type::literal, i)) {
+                    const char *delims = ".";
 
-        for(; index < tokens.size(); index++) {
-            const Token &token = tokens[index];
-
-            switch(token.type) {
-                case Token::Type::open_brace:
-                    scope_depth++;
-                    break;
-                case Token::Type::close_brace:
-                    scope_depth--;
-                    break;
-                default:
-                    break;
-            }
-
-            if(scope_depth == 0) {
-                break;
-            }
-
-            if(token.type == Token::Type::literal && token.value == "version") {
-                find_next(Token::Type::literal);
-
-                const char *delims = ".";
-
-                char *str = copy_to_str(tokens[index].value);
-                if(str) {
-                    char *tok = strtok(str, delims);
-                    info.version.major = atol(tok);
-                    tok = strtok(nullptr, delims);
-                    info.version.minor = atol(tok);
+                    char *str = copy_to_str(tokens[i].value);
+                    if(str) {
+                        char *tok = strtok(str, delims);
+                        info.version.major = atol(tok);
+                        tok = strtok(nullptr, delims);
+                        info.version.minor = atol(tok);
+                    }
                 }
             }
         }
     }
 
     void Parser::parse_scenes(void) {
-        size_t scene_index = 0;
+        auto it = top_level_nodes.find("scenes");
 
-        for(; index < tokens.size(); index++) {
-            if(tokens[index].type == Token::Type::close_bracket) {
-                break;
-            }
-
-            if(tokens[index].type == Token::Type::open_brace) {
-                info.scenes.push_back({});
-
-                while(tokens[index].type != Token::Type::close_brace) {
-                    if(tokens[index].type == Token::Type::literal && tokens[index].value == "nodes") {
-                        find_next(Token::Type::open_bracket);
-
-                        while(tokens[index].type != Token::Type::close_bracket) {
-                            if(tokens[index].type == Token::Type::literal) {
-                                info.scenes[scene_index].node_indices.push_back(atol(tokens[index].value.c_str()));
-                            }
-
-                            index++;
-                        }
-                    }
-
-                    index++;
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::open_brace) {
+                    info.scenes.push_back({});
+                    continue;
                 }
 
-                scene_index++;
+                if(tokens[i].type == Token::Type::literal && tokens[i].value == "nodes" && find_next(Token::Type::open_bracket, i)) {
+                    while(tokens[i].type != Token::Type::close_bracket) {
+                        if(tokens[i].type == Token::Type::literal) {
+                            info.scenes[info.scenes.size() - 1].node_indices.push_back(atol(tokens[i].value.c_str()));
+                        }
+
+                        i++;
+                    }
+                }
             }
         }
     }
 
-    // TODO: This is very similar to parse_scenes(), so it makes sense to create some helper functions to reduce the amount of code duplication
     void Parser::parse_nodes(void) {
-        size_t node_index = 0;
+        auto it = top_level_nodes.find("nodes");
 
-        for(; index < tokens.size(); index++) {
-            if(tokens[index].type == Token::Type::close_bracket) {
-                break;
-            }
-
-            if(tokens[index].type == Token::Type::open_brace) {
-                info.nodes.push_back({});
-
-                while(tokens[index].type != Token::Type::close_brace) {
-                    if(tokens[index].type == Token::Type::literal && tokens[index].value == "mesh") {
-                        find_next(Token::Type::literal);
-                        info.nodes[node_index].mesh_index = atol(tokens[index].value.c_str());
-                    }
-
-                    index++;
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::open_brace) {
+                    info.nodes.push_back({});
+                    continue;
                 }
 
-                node_index++;
+                if(tokens[i].type == Token::Type::literal && tokens[i].value == "mesh" && find_next(Token::Type::literal, i)) {
+                    info.nodes[info.nodes.size() - 1].mesh_index = atol(tokens[i].value.c_str());
+                }
             }
         }
     }
