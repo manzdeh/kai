@@ -72,7 +72,7 @@ namespace kai::gltf2 {
 
     struct Mesh {
         struct Primitive {
-            enum {
+            enum class Type {
                 position,
                 normal,
                 tangent,
@@ -80,8 +80,9 @@ namespace kai::gltf2 {
                 color,
                 joint,
                 weight
-            } type;
-            uint32_t index = 0;
+            };
+            std::pair<Type, uint32_t> type;
+            uint32_t indices;
         };
         std::vector<Primitive> primitives;
     };
@@ -172,6 +173,7 @@ namespace kai::gltf2 {
         void parse_asset(void);
         void parse_scenes(void);
         void parse_nodes(void);
+        void parse_meshes(void);
 
         Info info;
         const std::vector<Token> &tokens;
@@ -257,6 +259,7 @@ namespace kai::gltf2 {
         if(p.info.version.major == 2 && p.info.version.minor == 0) {
             p.parse_scenes();
             p.parse_nodes();
+            p.parse_meshes();
         } else {
             fprintf(stderr, "Only glTF 2.0 files are supported!\n");
         }
@@ -362,7 +365,7 @@ namespace kai::gltf2 {
                 if(tokens[i].type == Token::Type::literal && tokens[i].value == "nodes" && find_next(Token::Type::open_bracket, i)) {
                     while(tokens[i].type != Token::Type::close_bracket) {
                         if(tokens[i].type == Token::Type::literal) {
-                            info.scenes[info.scenes.size() - 1].node_indices.push_back(atol(tokens[i].value.c_str()));
+                            info.scenes.back().node_indices.push_back(atol(tokens[i].value.c_str()));
                         }
 
                         i++;
@@ -383,7 +386,68 @@ namespace kai::gltf2 {
                 }
 
                 if(tokens[i].type == Token::Type::literal && tokens[i].value == "mesh" && find_next(Token::Type::literal, i)) {
-                    info.nodes[info.nodes.size() - 1].mesh_index = atol(tokens[i].value.c_str());
+                    info.nodes.back().mesh_index = atol(tokens[i].value.c_str());
+                }
+            }
+        }
+    }
+
+    void Parser::parse_meshes(void) {
+        auto it = top_level_nodes.find("meshes");
+
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::open_brace) {
+                    info.meshes.push_back({});
+                    continue;
+                }
+
+                if(tokens[i].type == Token::Type::literal && tokens[i].value == "primitives" && find_next(Token::Type::open_bracket, i)) {
+                    while(tokens[i].type != Token::Type::close_bracket) {
+                        if(tokens[i].type == Token::Type::open_brace) {
+                            info.meshes.back().primitives.push_back({});
+
+                            while(tokens[i].type != Token::Type::close_brace) {
+
+                                if(tokens[i].type == Token::Type::literal) {
+                                    if(tokens[i].value == "attributes" && find_next(Token::Type::open_brace, i)) {
+                                        static std::array<const char *, 7> attribute_types = {
+                                            "POSITION",
+                                            "NORMAL",
+                                            "TANGENT",
+                                            "TEXCOORD",
+                                            "COLOR",
+                                            "JOINT",
+                                            "WEIGHT"
+                                        };
+
+                                        while(tokens[i].type != Token::Type::close_brace) {
+                                            auto find_match = [&strval = tokens[i].value](const char *str) {
+                                                return strval.rfind(str, 0) == 0;
+                                            };
+                                            auto retval = std::find_if(attribute_types.begin(), attribute_types.end(), find_match);
+
+                                            if(retval != attribute_types.end()) {
+                                            }
+
+                                            i++;
+                                        }
+
+                                    } else if(tokens[i].value == "indices" && find_next(Token::Type::literal, i)) {
+                                        info.meshes.back().primitives.back().indices = atol(tokens[i].value.c_str());
+                                    }
+                                }
+
+                                if(tokens[i].type == Token::Type::literal && tokens[i].value == "attributes" && find_next(Token::Type::open_brace, i)) {
+                                } else if(tokens[i].type == Token::Type::literal) {
+                                }
+
+                                i++;
+                            }
+                        }
+
+                        i++;
+                    }
                 }
             }
         }
