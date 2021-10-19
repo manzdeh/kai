@@ -72,7 +72,7 @@ namespace kai::gltf2 {
 
     struct Mesh {
         struct Primitive {
-            enum class Type {
+            enum class Attribute {
                 position,
                 normal,
                 tangent,
@@ -81,7 +81,7 @@ namespace kai::gltf2 {
                 joint,
                 weight
             };
-            std::pair<Type, uint32_t> type;
+            std::vector<std::pair<Attribute, uint32_t>> attributes;
             uint32_t indices;
         };
         std::vector<Primitive> primitives;
@@ -323,7 +323,7 @@ namespace kai::gltf2 {
                 }
 
                 if(depth == 0 && tokens[i].type == close_type) {
-                    out_indices = std::make_pair(scope_start, i);
+                    out_indices = std::pair(scope_start, i);
                     return true;
                 }
             }
@@ -392,6 +392,7 @@ namespace kai::gltf2 {
         }
     }
 
+    // TODO: Check if this can be simplified a bit
     void Parser::parse_meshes(void) {
         auto it = top_level_nodes.find("meshes");
 
@@ -422,12 +423,17 @@ namespace kai::gltf2 {
                                         };
 
                                         while(tokens[i].type != Token::Type::close_brace) {
-                                            auto find_match = [&strval = tokens[i].value](const char *str) {
+                                            auto retval = std::find_if(attribute_types.begin(), attribute_types.end(), [&strval = tokens[i].value](const char *str) {
                                                 return strval.rfind(str, 0) == 0;
-                                            };
-                                            auto retval = std::find_if(attribute_types.begin(), attribute_types.end(), find_match);
+                                            });
 
                                             if(retval != attribute_types.end()) {
+                                                using Attribute = Mesh::Primitive::Attribute;
+
+                                                ptrdiff_t attribute_idx = retval - attribute_types.begin();
+                                                find_next(Token::Type::literal, i);
+                                                uint32_t data_idx = atol(tokens[i].value.c_str());
+                                                info.meshes.back().primitives.back().attributes.push_back({static_cast<Attribute>(attribute_idx), data_idx});
                                             }
 
                                             i++;
@@ -436,10 +442,6 @@ namespace kai::gltf2 {
                                     } else if(tokens[i].value == "indices" && find_next(Token::Type::literal, i)) {
                                         info.meshes.back().primitives.back().indices = atol(tokens[i].value.c_str());
                                     }
-                                }
-
-                                if(tokens[i].type == Token::Type::literal && tokens[i].value == "attributes" && find_next(Token::Type::open_brace, i)) {
-                                } else if(tokens[i].type == Token::Type::literal) {
                                 }
 
                                 i++;
