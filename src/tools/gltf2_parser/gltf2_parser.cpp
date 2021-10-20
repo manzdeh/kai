@@ -88,11 +88,32 @@ namespace kai::gltf2 {
     };
 
     struct Accessor {
-        uint32_t buffer_view_index;
+        enum class Type;
+
+        void set_component_type(const std::string &str) {
+            if(str == "SCALAR") {
+                type = Accessor::Type::scalar;
+            } else if(str == "VEC2") {
+                type = Accessor::Type::vec2;
+            } else if(str == "VEC3") {
+                type = Accessor::Type::vec3;
+            } else if(str == "VEC4") {
+                type = Accessor::Type::vec4;
+            } else if(str == "MAT2") {
+                type = Accessor::Type::mat2;
+            } else if(str == "MAT3") {
+                type = Accessor::Type::mat3;
+            } else if(str == "MAT4") {
+                type = Accessor::Type::mat4;
+            }
+        }
+
+        uint32_t buffer_view;
         uint32_t byte_offset;
         uint32_t count;
 
         enum class ComponentType {
+            unset = 0,
             sbyte = 5120,
             ubyte = 5121,
             sshort = 5122,
@@ -111,8 +132,8 @@ namespace kai::gltf2 {
             mat4
         } type;
 
-        std::vector<float> max;
-        std::vector<float> min;
+        std::vector<std::array<uint8_t, 4>> max;
+        std::vector<std::array<uint8_t, 4>> min;
         bool normalized;
     };
 
@@ -174,6 +195,7 @@ namespace kai::gltf2 {
         void parse_scenes(void);
         void parse_nodes(void);
         void parse_meshes(void);
+        void parse_accessors(void);
 
         Info info;
         const std::vector<Token> &tokens;
@@ -260,6 +282,7 @@ namespace kai::gltf2 {
             p.parse_scenes();
             p.parse_nodes();
             p.parse_meshes();
+            p.parse_accessors();
         } else {
             fprintf(stderr, "Only glTF 2.0 files are supported!\n");
         }
@@ -412,7 +435,7 @@ namespace kai::gltf2 {
 
                                 if(tokens[i].type == Token::Type::literal) {
                                     if(tokens[i].value == "attributes" && find_next(Token::Type::open_brace, i)) {
-                                        static std::array<const char *, 7> attribute_types = {
+                                        static const std::array<const char *, 7> attribute_types = {
                                             "POSITION",
                                             "NORMAL",
                                             "TANGENT",
@@ -454,4 +477,100 @@ namespace kai::gltf2 {
             }
         }
     }
+
+    void Parser::parse_accessors(void) {
+        auto it = top_level_nodes.find("accessors");
+
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::open_brace) {
+                    info.accessors.push_back({});
+                    continue;
+                }
+
+                if(tokens[i].type == Token::Type::literal) {
+                    if(tokens[i].value == "bufferView" && find_next(Token::Type::literal, i)) {
+                        info.accessors.back().buffer_view = atol(tokens[i].value.c_str());
+                        continue;
+                    }
+
+                    if(tokens[i].value == "byte_offset" && find_next(Token::Type::literal, i)) {
+                        info.accessors.back().byte_offset = atol(tokens[i].value.c_str());
+                        continue;
+                    }
+
+                    if(tokens[i].value == "count" && find_next(Token::Type::literal, i)) {
+                        info.accessors.back().count = atol(tokens[i].value.c_str());
+                        continue;
+                    }
+
+                    if(tokens[i].value == "componentType" && find_next(Token::Type::literal, i)) {
+                        info.accessors.back().component_type = static_cast<Accessor::ComponentType>(atol(tokens[i].value.c_str()));
+                        continue;
+                    }
+
+                    if(tokens[i].value == "type" && find_next(Token::Type::literal, i)) {
+                        info.accessors.back().set_component_type(tokens[i].value);
+                        continue;
+                    }
+
+                    if(tokens[i].value == "normalized" && find_next(Token::Type::literal, i)) {
+                        info.accessors.back().normalized = atol(tokens[i].value.c_str());
+                        continue;
+                    }
+
+                    // TODO: Need to handle "min" as well
+                    if(tokens[i].value == "max" && find_next(Token::Type::open_bracket, i)) {
+                        if(info.accessors.back().component_type != Accessor::ComponentType::unset) {
+                            while(tokens[i].type != Token::Type::close_bracket) {
+                                if(tokens[i].type == Token::Type::literal) {
+                                    info.accessors.back().max.push_back({});
+
+                                    switch(info.accessors.back().component_type) {
+                                        case Accessor::ComponentType::sbyte: {
+                                            int8_t val = static_cast<int8_t>(atoi(tokens[i].value.c_str()));
+                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
+                                            break;
+                                        }
+                                        case Accessor::ComponentType::ubyte: {
+                                            uint8_t val = static_cast<uint8_t>(atoi(tokens[i].value.c_str()));
+                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
+                                            break;
+                                        }
+                                        case Accessor::ComponentType::sshort: {
+                                            int16_t val = static_cast<int16_t>(atoi(tokens[i].value.c_str()));
+                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
+                                            break;
+                                        }
+                                        case Accessor::ComponentType::ushort: {
+                                            uint16_t val = static_cast<uint16_t>(atoi(tokens[i].value.c_str()));
+                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
+                                            break;
+                                        }
+                                        case Accessor::ComponentType::uint: {
+                                            uint32_t val = atol(tokens[i].value.c_str());
+                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
+                                            break;
+                                        }
+                                        case Accessor::ComponentType::float32: {
+                                            float val = static_cast<float>(atof(tokens[i].value.c_str()));
+                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
+                                            break;
+                                        }
+                                        default:
+                                            break;
+                                    }
+                                }
+
+                                i++;
+                            }
+                        } else {
+                            fprintf(stderr, "Can't parse the \"max\" component for accessor %d, because the \"componentType\" is unspecified!\n", static_cast<uint32_t>(info.accessors.size() - 1));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }
