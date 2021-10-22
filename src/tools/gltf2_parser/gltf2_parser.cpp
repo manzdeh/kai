@@ -89,6 +89,7 @@ namespace kai::gltf2 {
 
     struct Accessor {
         enum class Type;
+        using ComponentValues = std::vector<std::array<uint8_t, 4>>;
 
         void set_component_type(const std::string &str) {
             if(str == "SCALAR") {
@@ -106,6 +107,12 @@ namespace kai::gltf2 {
             } else if(str == "MAT4") {
                 type = Accessor::Type::mat4;
             }
+        }
+
+        template<typename T, typename U = int(const char *)>
+        void parse_accessor_type(const char *str, ComponentValues &component, U pred = atoi) {
+            T val = static_cast<T>(pred(str));
+            memcpy(component.back().data(), &val, sizeof(val));
         }
 
         uint32_t buffer_view;
@@ -132,8 +139,8 @@ namespace kai::gltf2 {
             mat4
         } type;
 
-        std::vector<std::array<uint8_t, 4>> max;
-        std::vector<std::array<uint8_t, 4>> min;
+        ComponentValues max;
+        ComponentValues min;
         bool normalized;
     };
 
@@ -196,6 +203,7 @@ namespace kai::gltf2 {
         void parse_nodes(void);
         void parse_meshes(void);
         void parse_accessors(void);
+        void parse_buffer_views(void);
 
         Info info;
         const std::vector<Token> &tokens;
@@ -519,55 +527,65 @@ namespace kai::gltf2 {
                         continue;
                     }
 
-                    // TODO: Need to handle "min" as well
-                    if(tokens[i].value == "max" && find_next(Token::Type::open_bracket, i)) {
-                        if(info.accessors.back().component_type != Accessor::ComponentType::unset) {
-                            while(tokens[i].type != Token::Type::close_bracket) {
-                                if(tokens[i].type == Token::Type::literal) {
-                                    info.accessors.back().max.push_back({});
-
-                                    switch(info.accessors.back().component_type) {
-                                        case Accessor::ComponentType::sbyte: {
-                                            int8_t val = static_cast<int8_t>(atoi(tokens[i].value.c_str()));
-                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
-                                            break;
-                                        }
-                                        case Accessor::ComponentType::ubyte: {
-                                            uint8_t val = static_cast<uint8_t>(atoi(tokens[i].value.c_str()));
-                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
-                                            break;
-                                        }
-                                        case Accessor::ComponentType::sshort: {
-                                            int16_t val = static_cast<int16_t>(atoi(tokens[i].value.c_str()));
-                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
-                                            break;
-                                        }
-                                        case Accessor::ComponentType::ushort: {
-                                            uint16_t val = static_cast<uint16_t>(atoi(tokens[i].value.c_str()));
-                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
-                                            break;
-                                        }
-                                        case Accessor::ComponentType::uint: {
-                                            uint32_t val = atol(tokens[i].value.c_str());
-                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
-                                            break;
-                                        }
-                                        case Accessor::ComponentType::float32: {
-                                            float val = static_cast<float>(atof(tokens[i].value.c_str()));
-                                            memcpy(info.accessors.back().max.back().data(), &val, sizeof(val));
-                                            break;
-                                        }
-                                        default:
-                                            break;
-                                    }
-                                }
-
-                                i++;
+                    auto parse_component_values = [this](const char *str, Accessor::ComponentValues &component, size_t &i) {
+                        size_t index = i;
+                        bool found_str = tokens[index].value == str;
+                        while(!found_str) {
+                            if(index >= tokens.size()) {
+                                break;
                             }
-                        } else {
-                            fprintf(stderr, "Can't parse the \"max\" component for accessor %d, because the \"componentType\" is unspecified!\n", static_cast<uint32_t>(info.accessors.size() - 1));
+
+                            find_next(Token::Type::literal, index);
+                            found_str = tokens[index].value == str;
                         }
-                    }
+
+                        if(found_str && find_next(Token::Type::open_bracket, index)) {
+                            i = index;
+
+                            const Accessor::ComponentType type = info.accessors.back().component_type;
+
+                            if(type != Accessor::ComponentType::unset) {
+                                while(tokens[i].type != Token::Type::close_bracket) {
+                                    if(tokens[i].type == Token::Type::literal) {
+                                        component.push_back({});
+
+                                        switch(type) {
+                                            case Accessor::ComponentType::sbyte:
+                                                info.accessors.back().parse_accessor_type<int8_t>(tokens[i].value.c_str(), component);
+                                                break;
+                                            case Accessor::ComponentType::ubyte:
+                                                info.accessors.back().parse_accessor_type<uint8_t>(tokens[i].value.c_str(), component);
+                                                break;
+                                            case Accessor::ComponentType::sshort:
+                                                info.accessors.back().parse_accessor_type<int16_t>(tokens[i].value.c_str(), component);
+                                                break;
+                                            case Accessor::ComponentType::ushort:
+                                                info.accessors.back().parse_accessor_type<uint16_t>(tokens[i].value.c_str(), component);
+                                                break;
+                                            case Accessor::ComponentType::uint:
+                                                info.accessors.back().parse_accessor_type<uint32_t, long int(const char *)>
+                                                    (tokens[i].value.c_str(), component, atol);
+                                                break;
+                                            case Accessor::ComponentType::float32: {
+                                                info.accessors.back().parse_accessor_type<float, double(const char *)>
+                                                    (tokens[i].value.c_str(), component, atof);
+                                                break;
+                                            }
+                                            default:
+                                                break;
+                                        }
+                                    }
+
+                                    i++;
+                                }
+                            } else {
+                                fprintf(stderr, "Can't parse the \"%s\" component for accessor %d, because the \"componentType\" is unspecified!\n", str, static_cast<uint32_t>(info.accessors.size() - 1));
+                            }
+                        }
+                    };
+
+                    parse_component_values("max", info.accessors.back().max, i);
+                    parse_component_values("min", info.accessors.back().min, i);
                 }
             }
         }
