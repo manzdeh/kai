@@ -145,11 +145,12 @@ namespace kai::gltf2 {
     };
 
     struct BufferView {
-        uint32_t index;
-        uint32_t offset;
-        uint32_t length;
-        uint32_t stride;
+        uint32_t buffer;
+        uint32_t byte_offset;
+        uint32_t byte_length;
+        uint32_t byte_stride;
         enum class Target {
+            unspecified = 0,
             array_buffer = 34962,
             element_array_buffer = 34963
         } target;
@@ -291,6 +292,7 @@ namespace kai::gltf2 {
             p.parse_nodes();
             p.parse_meshes();
             p.parse_accessors();
+            p.parse_buffer_views();
         } else {
             fprintf(stderr, "Only glTF 2.0 files are supported!\n");
         }
@@ -586,6 +588,37 @@ namespace kai::gltf2 {
 
                     parse_component_values("max", info.accessors.back().max, i);
                     parse_component_values("min", info.accessors.back().min, i);
+                }
+            }
+        }
+    }
+
+    void Parser::parse_buffer_views(void) {
+        auto it = top_level_nodes.find("bufferViews");
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::open_brace) {
+                    info.buffer_views.push_back({});
+
+                    while(tokens[i].type != Token::Type::close_brace) {
+                        if(tokens[i].type == Token::Type::literal) {
+#define MAP_VALUE(str, member, type) \
+                            if(tokens[i].value == str && find_next(Token::Type::literal, i)) { \
+                                info.buffer_views.back().member = static_cast<type>(atol(tokens[i].value.c_str())); \
+                                goto next; \
+                            }
+
+                            MAP_VALUE("buffer", buffer, uint32_t);
+                            MAP_VALUE("byteOffset", byte_offset, uint32_t);
+                            MAP_VALUE("byteLength", byte_length, uint32_t);
+                            MAP_VALUE("byteStride", byte_stride, uint32_t);
+                            MAP_VALUE("target", target, BufferView::Target);
+
+#undef MAP_VALUE
+                        }
+next:
+                        i++;
+                    }
                 }
             }
         }
