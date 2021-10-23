@@ -157,8 +157,8 @@ namespace kai::gltf2 {
     };
 
     struct Buffer {
-        size_t count;
-        unsigned char *data;
+        uint64_t byte_length;
+        std::string uri;
     };
 
     struct Info {
@@ -205,6 +205,7 @@ namespace kai::gltf2 {
         void parse_meshes(void);
         void parse_accessors(void);
         void parse_buffer_views(void);
+        void parse_buffers(void);
 
         Info info;
         const std::vector<Token> &tokens;
@@ -284,7 +285,6 @@ namespace kai::gltf2 {
         }
 
         Parser p(tokens);
-
         p.parse_asset();
 
         if(p.info.version.major == 2 && p.info.version.minor == 0) {
@@ -293,8 +293,10 @@ namespace kai::gltf2 {
             p.parse_meshes();
             p.parse_accessors();
             p.parse_buffer_views();
+            p.parse_buffers();
         } else {
             fprintf(stderr, "Only glTF 2.0 files are supported!\n");
+            return;
         }
     }
 
@@ -618,6 +620,28 @@ namespace kai::gltf2 {
                         }
 next:
                         i++;
+                    }
+                }
+            }
+        }
+    }
+
+    void Parser::parse_buffers(void) {
+        auto it = top_level_nodes.find("buffers");
+        if(it != top_level_nodes.end()) {
+            for(size_t i = it->second.first; i < it->second.second; i++) {
+                if(tokens[i].type == Token::Type::open_brace) {
+                    info.buffers.push_back({});
+                    continue;
+                }
+
+                if(tokens[i].type == Token::Type::literal) {
+                    if(tokens[i].value == "byteLength") {
+                        find_next(Token::Type::literal, i);
+                        info.buffers.back().byte_length = atoll(tokens[i].value.c_str());
+                    } else if(tokens[i].value == "uri") {
+                        find_next(Token::Type::literal, i);
+                        info.buffers.back().uri = tokens[i].value;
                     }
                 }
             }
