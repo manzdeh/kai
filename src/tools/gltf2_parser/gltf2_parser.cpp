@@ -3,13 +3,16 @@
  * See LICENSE for details
  **************************************************/
 
+// TODO: This is not a full glTF2 parser (yet). At the moment it only handles glTF files that
+// contain a single mesh and it assumes that the data contained in the buffer is non-interleaved.
+
 #include "gltf2_parser.h"
 
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <array>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -79,7 +82,9 @@ namespace kai::gltf2 {
                 texcoord,
                 color,
                 joint,
-                weight
+                weight,
+
+                count
             };
             std::vector<std::pair<Attribute, uint32_t>> attributes;
             uint32_t indices;
@@ -88,7 +93,6 @@ namespace kai::gltf2 {
     };
 
     struct Accessor {
-        enum class Type;
         using ComponentValues = std::vector<std::array<uint8_t, 4>>;
 
         void set_component_type(const std::string &str) {
@@ -129,6 +133,18 @@ namespace kai::gltf2 {
             float32 = 5126
         } component_type;
 
+        constexpr size_t get_component_size(void) const {
+            switch(component_type) {
+                case ComponentType::sbyte: return sizeof(int8_t);
+                case ComponentType::ubyte: return sizeof(uint8_t);
+                case ComponentType::sshort: return sizeof(int16_t);
+                case ComponentType::ushort: return sizeof(uint16_t);
+                case ComponentType::uint: return sizeof(uint32_t);
+                case ComponentType::float32: return sizeof(float);
+                default: return 0;
+            }
+        }
+
         enum class Type {
             scalar,
             vec2,
@@ -139,6 +155,19 @@ namespace kai::gltf2 {
             mat4
         } type;
 
+        constexpr uint32_t get_type_count(void) const {
+            switch(type) {
+                case Type::scalar: return 1;
+                case Type::vec2: return 2;
+                case Type::vec3: return 3;
+                case Type::vec4: return 4;
+                case Type::mat2: return 4;
+                case Type::mat3: return 9;
+                case Type::mat4: return 16;
+                default: return 0;
+            }
+        }
+
         ComponentValues max;
         ComponentValues min;
         bool normalized;
@@ -148,12 +177,13 @@ namespace kai::gltf2 {
         uint32_t buffer;
         uint32_t byte_offset;
         uint32_t byte_length;
-        uint32_t byte_stride;
         enum class Target {
             unspecified = 0,
             array_buffer = 34962,
             element_array_buffer = 34963
         } target;
+
+        std::optional<uint32_t> byte_stride;
     };
 
     struct Buffer {
@@ -224,7 +254,7 @@ namespace kai::gltf2 {
         "buffers"
     };
 
-    void load(const char *buffer, size_t size) {
+    MeshData * load(const char *buffer, const char *dir, size_t size) {
         size = (size > 0) ? size : strlen(buffer);
 
         std::vector<Token> tokens;
@@ -296,10 +326,115 @@ namespace kai::gltf2 {
             p.parse_buffers();
         } else {
             fprintf(stderr, "Only glTF 2.0 files are supported!\n");
-            return;
+            return nullptr;
         }
+
+        if(p.info.meshes.size() > 0 && p.info.buffers.size() > 0) {
+            // NOTE: For now we only assume 1 mesh and 1 buffer per file
+
+            static char file_path[9999];
+            const char *file = p.info.buffers.front().uri.c_str();
+            if(dir) {
+                snprintf(file_path, sizeof(file_path), "%s/%s", dir, file);
+                file = file_path;
+            }
+
+            FILE *f = fopen(file, "rb");
+
+            if(f) {
+                KAI_PUSH_DISABLE_COMPILER_WARNINGS(4815)
+                MeshData m;
+                KAI_POP_COMPILER_WARNINGS
+
+                using PrimAttrib = Mesh::Primitive::Attribute;
+
+                int32_t buffer_indices[static_cast<uint32_t>(PrimAttrib::count)];
+                for(uint32_t i = 0; i < KAI_ARRAY_COUNT(buffer_indices); i++) {
+                    buffer_indices[i] = -1;
+                }
+
+                for(const Mesh::Primitive &primitive : p.info.meshes.front().primitives) {
+                    bool processed_index_buffer = false;
+
+                    for(uint32_t i = 0; i < primitive.attributes.size(); i++) {
+                        const auto &attribute = primitive.attributes[i];
+
+                        KAI_ASSERT(attribute.second < p.info.accessors.size());
+                        KAI_ASSERT(p.info.accessors[attribute.second].buffer_view < p.info.buffer_views.size());
+
+                        const Accessor &accessor = p.info.accessors[attribute.second];
+                        const BufferView &bv = p.info.buffer_views[accessor.buffer_view];
+
+                        KAI_ASSERT(!bv.byte_stride.has_value()); // TODO: Stride values aren't handled yet
+
+                        switch(attribute.first) {
+                            case Mesh::Primitive::Attribute::position:
+                                m.vertex_count = accessor.count;
+                                m.attributes.position = static_cast<int32_t>(m.vertex_stride);
+                                buffer_indices[static_cast<uint32_t>(PrimAttrib::position)] = accessor.buffer_view;
+                                break;
+                            case Mesh::Primitive::Attribute::normal:
+                                m.attributes.normal = static_cast<int32_t>(m.vertex_stride);
+                                buffer_indices[static_cast<uint32_t>(PrimAttrib::normal)] = accessor.buffer_view;
+                                break;
+                            case Mesh::Primitive::Attribute::texcoord:
+                                m.attributes.texcoord = static_cast<int32_t>(m.vertex_stride);
+                                buffer_indices[static_cast<uint32_t>(PrimAttrib::texcoord)] = accessor.buffer_view;
+                                break;
+                        }
+
+                        m.vertex_byte_size += bv.byte_length;
+                        m.vertex_stride += accessor.get_component_size() * accessor.get_type_count();
+
+                        if(!processed_index_buffer) {
+                            KAI_ASSERT(primitive.indices < p.info.accessors.size());
+                            KAI_ASSERT(p.info.accessors[primitive.indices].buffer_view < p.info.buffer_views.size());
+
+                            const Accessor &ibuffer_accessor = p.info.accessors[primitive.indices];
+                            const BufferView &ibuffer_view = p.info.buffer_views[ibuffer_accessor.buffer_view];
+
+                            m.index_count = ibuffer_accessor.count;
+                            m.index_byte_size = ibuffer_view.byte_length;
+                            m.index_byte_offset = ibuffer_view.byte_offset;
+
+                            processed_index_buffer = true;
+                        }
+                    }
+                }
+
+                KAI_ASSERT(m.attributes.position >= 0); // We always expect to have vertex positions
+
+                m.vertex_byte_size = m.vertex_stride * m.vertex_count;
+
+                MeshData *mesh_data = reinterpret_cast<MeshData *>(malloc(sizeof(*mesh_data) + m.vertex_byte_size + m.index_byte_size));
+                memcpy(mesh_data, &m, sizeof(m));
+
+                // NOTE: This works for non-interleaved data, but it won't work once the stride parameter is used
+                for(uint32_t i = 0; i < KAI_ARRAY_COUNT(buffer_indices); i++) {
+                    if(m.attributes.data[i] > -1) {
+                        const BufferView &view = p.info.buffer_views[buffer_indices[i]];
+                        fseek(f, view.byte_offset, SEEK_SET);
+                        fread(mesh_data->data + m.attributes.data[i], 1, view.byte_length, f);
+                    }
+                }
+
+                fseek(f, static_cast<long int>(m.index_byte_offset), SEEK_SET);
+                fread(mesh_data->data + m.vertex_byte_size, 1, m.index_byte_size, f);
+
+                fclose(f);
+
+                return mesh_data;
+            }
+        }
+
+        return nullptr;
     }
 
+    void destroy(MeshData *data) {
+        free(data);
+    }
+
+    // -------------------------------------------------- Parser --------------------------------------------------
     bool Parser::find_next(Token::Type type, size_t &out_index) {
         size_t index = out_index + 1;
         for(; index < tokens.size(); index++) {

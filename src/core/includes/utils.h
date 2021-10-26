@@ -16,8 +16,21 @@
 #define KAI_API __declspec(dllexport)
 #define KAI_FORCEINLINE __forceinline
 
+// NOTE: This *MUST* always be the last member in a struct and there can only be *ONE* of these per struct
+#define KAI_FLEXIBLE_ARRAY(name) name[]
+
+#define KAI_PUSH_DISABLE_COMPILER_WARNINGS(...) \
+    __pragma(warning(push)) \
+    __pragma(warning(disable: __VA_ARGS__))
+#define KAI_POP_COMPILER_WARNINGS __pragma(warning(pop))
+
 #else
+
 #define KAI_FORCEINLINE inline
+#define KAI_PUSH_DISABLE_COMPILER_WARNINGS(...)
+#define KAI_POP_COMPILER_WARNINGS
+#error Implement KAI_FLEXIBLE_ARRAY for this compiler
+
 #endif
 
 #define KAI_ASSERT(expr) assert(expr)
