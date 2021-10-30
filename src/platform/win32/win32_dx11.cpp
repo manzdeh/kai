@@ -483,7 +483,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
 
 
     size_t input_size = sizeof(D3D11_INPUT_ELEMENT_DESC) * input_layout_count;
-    D3D11_INPUT_ELEMENT_DESC *input_descs = static_cast<D3D11_INPUT_ELEMENT_DESC *>(_malloca(input_size));
+    D3D11_INPUT_ELEMENT_DESC *input_descs = static_cast<D3D11_INPUT_ELEMENT_DESC *>(_alloca(input_size));
     memset(input_descs, 0, input_size);
 
     for(Uint32 i = 0; i < input_layout_count; i++) {
@@ -492,7 +492,7 @@ bool DX11Renderer::create_render_pipeline(const kai::RenderPipelineInfo &info, c
         input_descs[i].Format = get_dxgi_format(input_layouts[i].format);
         input_descs[i].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
         input_descs[i].AlignedByteOffset = (input_layouts[i].offset != KAI_INPUT_LAYOUT_APPEND) ?
-            input_layouts[i].offset : D3D11_INPUT_PER_VERTEX_DATA;
+            input_layouts[i].offset : D3D11_APPEND_ALIGNED_ELEMENT;
     }
 
     d->device->CreateInputLayout(input_descs, input_layout_count, vs_bytecode->GetBufferPointer(),
