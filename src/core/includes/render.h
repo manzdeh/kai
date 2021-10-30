@@ -63,11 +63,11 @@ namespace kai {
         const void *data;
         size_t byte_size;
 
-        Uint32 stride;
+        Uint32 stride = 0;
 
         RenderBufferType type;
-        RenderCPUUsage cpu_usage;
-        RenderResourceUsage resource_usage;
+        RenderCPUUsage cpu_usage = RenderCPUUsage::none;
+        RenderResourceUsage resource_usage = RenderResourceUsage::gpu_r;
     };
 
     struct RenderBuffer {
@@ -93,13 +93,13 @@ namespace kai {
         enum class FillMode {
             solid,
             wireframe
-        } fill_mode;
+        } fill_mode = FillMode::solid;
 
         enum class CullMode {
             none,
             front,
             back
-        } cull_mode;
+        } cull_mode = CullMode::back;
 
         enum class TopologyType {
             undefined,
@@ -108,16 +108,16 @@ namespace kai {
             line_strip,
             triangle_list,
             triangle_strip
-        } topology;
+        } topology = TopologyType::triangle_list;
 
-        Bool32 color_enable;
-        Float32 color_clear_values[4];
+        Bool32 color_enable = true;
+        Float32 color_clear_values[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-        Bool32 depth_enable;
-        Float32 depth_clear_value;
+        Bool32 depth_enable = false;
+        Float32 depth_clear_value = 0.0f;
 
-        Bool32 stencil_enable;
-        Uint32 stencil_clear_value;
+        Bool32 stencil_enable = false;
+        Uint32 stencil_clear_value = 0;
 
         Bool32 front_ccw;
     };
@@ -157,8 +157,7 @@ namespace kai {
 
     // Abstraction for both the GPU and rendering API
     struct RenderDevice {
-        KAI_API static RenderDevice * init_device(void);
-        KAI_API static RenderDevice * init_device(Uint32 id);
+        KAI_API static RenderDevice * get(void);
 
         virtual void destroy(void) = 0;
 

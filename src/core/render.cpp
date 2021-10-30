@@ -8,6 +8,9 @@
 #include "includes/render.h"
 #include "render_internal.h"
 
+static kai::RenderDevice * init_device(void);
+static kai::RenderDevice * init_device(Uint32 id);
+
 void init_renderer(kai::RenderingBackend backend) {
 #ifndef KAI_PLATFORM_WIN32
     if(backend == kai::RenderingBackend::dx11) {
@@ -17,6 +20,7 @@ void init_renderer(kai::RenderingBackend backend) {
 #endif
 
     platform_renderer_init_backend(backend);
+    init_device();
 }
 
 void destroy_renderer(void) {
@@ -83,12 +87,27 @@ void kai::CommandBuffer::clear_depth_stencil(void) { push_command(allocator, Com
 #undef PUSH_TO_COMMAND_BUFFER
 
 // -------------------------------------------------- RenderDevice  -------------------------------------------------- //
-kai::RenderDevice * kai::RenderDevice::init_device(void) {
-    return  platform_renderer_init_device(*get_engine_memory());
+static kai::RenderDevice *g_device = nullptr;
+static kai::RenderDevice * init_device(void) {
+    if(!g_device) {
+        g_device = platform_renderer_init_device(*get_engine_memory());
+    }
+
+    return g_device;
 }
 
-kai::RenderDevice * kai::RenderDevice::init_device(Uint32 id) {
-    return platform_renderer_init_device(*get_engine_memory(), id);
+#if 0
+static kai::RenderDevice * init_device(Uint32 id) {
+    if(!g_device) {
+        g_device = platform_renderer_init_device(*get_engine_memory(), id);
+    }
+
+    return g_device;
+}
+#endif
+
+kai::RenderDevice * kai::RenderDevice::get(void) {
+    return g_device;
 }
 
 kai::Window * kai::get_window(void) {

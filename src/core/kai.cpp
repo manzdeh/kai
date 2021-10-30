@@ -12,6 +12,8 @@
 #include "input.cpp"
 #include "render.cpp"
 
+#include "../asset/asset_manager.cpp"
+
 // TODO: Temporarily building the glTF parser as part of the core engine. This needs
 // to be built separately eventually, because the tools are meant for offline use
 #include "../tools/gltf2_parser/gltf2_parser.cpp"
@@ -45,9 +47,11 @@ static KaiLogProc log_func = nullptr;
 void init_engine(void) {
     MemoryManager::init(kai::gibibytes(4));
     engine_memory = kai::StackAllocator(static_cast<Uint32>(kai::mebibytes(64)));
-    init_input();
 
+    init_input();
     init_renderer(kai::RenderingBackend::dx11);
+
+    init_asset_manager();
 
     // TODO: Log an error if the required callbacks haven't been found on the game's side
     platform_setup_game_callbacks(game_manager.callbacks);
@@ -71,6 +75,7 @@ bool tick_engine(void) {
 
 void destroy_engine(void) {
     game_manager.callbacks.destroy();
+    destroy_asset_manager();
     destroy_renderer();
     engine_memory.destroy();
     MemoryManager::destroy();
