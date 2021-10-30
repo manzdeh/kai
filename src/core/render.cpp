@@ -10,8 +10,9 @@
 
 static kai::RenderDevice * init_device(void);
 static kai::RenderDevice * init_device(Uint32 id);
+static kai::RenderDevice *g_device = nullptr;
 
-void init_renderer(kai::RenderingBackend backend) {
+void init_renderer(kai::RenderingBackend backend, const Uint32 *device_id) {
 #ifndef KAI_PLATFORM_WIN32
     if(backend == kai::RenderingBackend::dx11) {
         kai::log("Direct3D11 is not supported on this platform!\n");
@@ -20,10 +21,11 @@ void init_renderer(kai::RenderingBackend backend) {
 #endif
 
     platform_renderer_init_backend(backend);
-    init_device();
+    device_id ? init_device(*device_id) : init_device();
 }
 
 void destroy_renderer(void) {
+    g_device->destroy();
     platform_renderer_destroy_backend();
 }
 
@@ -87,7 +89,6 @@ void kai::CommandBuffer::clear_depth_stencil(void) { push_command(allocator, Com
 #undef PUSH_TO_COMMAND_BUFFER
 
 // -------------------------------------------------- RenderDevice  -------------------------------------------------- //
-static kai::RenderDevice *g_device = nullptr;
 static kai::RenderDevice * init_device(void) {
     if(!g_device) {
         g_device = platform_renderer_init_device(*get_engine_memory());
@@ -96,7 +97,6 @@ static kai::RenderDevice * init_device(void) {
     return g_device;
 }
 
-#if 0
 static kai::RenderDevice * init_device(Uint32 id) {
     if(!g_device) {
         g_device = platform_renderer_init_device(*get_engine_memory(), id);
@@ -104,7 +104,6 @@ static kai::RenderDevice * init_device(Uint32 id) {
 
     return g_device;
 }
-#endif
 
 kai::RenderDevice * kai::RenderDevice::get(void) {
     return g_device;

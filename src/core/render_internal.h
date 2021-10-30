@@ -9,7 +9,7 @@
 #include "includes/render.h"
 #include "includes/types.h"
 
-void init_renderer(kai::RenderingBackend backend);
+void init_renderer(kai::RenderingBackend backend, const Uint32 *device_id = nullptr);
 void destroy_renderer(void);
 
 enum class CommandEncoding : Uint32 {
