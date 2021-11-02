@@ -14,10 +14,6 @@
 
 #include "../asset/asset_manager.cpp"
 
-// TODO: Temporarily building the glTF parser as part of the core engine. This needs
-// to be built separately eventually, because the tools are meant for offline use
-#include "../tools/gltf2_parser/gltf2_parser.cpp"
-
 #define STUB_NAME_HELPER(name) name##_stub
 #define STUB_NAME(name) STUB_NAME_HELPER(name)
 #define DEF_STUB_FUNC(name) KAI_GAME_CALLBACK_FUNC(STUB_NAME(name))
