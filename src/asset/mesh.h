@@ -30,9 +30,8 @@ namespace kai {
         } indices;
 
         struct {
-            Uint32 count;
-            Uint32 start;
-            Uint32 size;
+            Uint32 count; // Refers to the number of UV coordinate attributes (TEXCOORD_0, TEXCOORD_1, etc.)
+            Uint32 start; // Stores the offset to the 1st UV coordinate in the buffer. The subsequent ones can be inferred from the .start member and vertices.stride
         } texcoords;
     };
 
