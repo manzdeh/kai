@@ -25,6 +25,8 @@ void init_asset_manager(void) {
             kai::MeshHeader *header = reinterpret_cast<kai::MeshHeader *>(reinterpret_cast<unsigned char *>(buf) +
                                                                           offsetof(kai::MeshData, header));
 
+            memset(mesh_data, 0, sizeof(*mesh_data));
+
             kai::read_file(test_mesh_file, header);
 
             unsigned char *data_start = reinterpret_cast<unsigned char *>(header) + header->buffer_start;
@@ -58,5 +60,19 @@ kai::MeshView asset_manager_get_mesh(void) {
 }
 
 void destroy_asset_manager(void) {
+    kai::RenderDevice *device = kai::RenderDevice::get();
+
+    // TODO: At the moment we only have a single mesh asset at the start of the allocated block.
+    // This needs to be updated to delete all of the buffers for all of the meshes
+    kai::MeshData *data_buffer = reinterpret_cast<kai::MeshData *>(mesh_asset_storage.get_buffer());
+
+    if(data_buffer->vertex_buffer.data) {
+        device->destroy_buffer(data_buffer->vertex_buffer);
+    }
+
+    if(data_buffer->index_buffer.data) {
+        device->destroy_buffer(data_buffer->index_buffer);
+    }
+
     mesh_asset_storage.destroy();
 }

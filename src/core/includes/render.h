@@ -60,8 +60,8 @@ namespace kai {
     };
 
     struct RenderBufferInfo {
-        const void *data;
-        size_t byte_size;
+        const void *data = nullptr;
+        size_t byte_size = 0;
 
         Uint32 stride = 0;
 
@@ -71,8 +71,8 @@ namespace kai {
     };
 
     struct RenderBuffer {
-        void *data;
-        Uint32 stride;
+        void *data = nullptr;
+        Uint32 stride = 0;
     };
 
 #define KAI_INPUT_LAYOUT_APPEND 0xffffffff
