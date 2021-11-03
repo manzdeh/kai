@@ -30,6 +30,26 @@ class Mesh:
         self.indices = IndexData()
         self.texcoords = Texcoord()
 
+    def save_to_file(self, file_handle):
+        # NOTE: If new members are written out, also make sure to update get_obj_size()
+        file_handle.write(self.buffer_size.to_bytes(8, "little"))
+        file_handle.write(self.buffer_start.to_bytes(8, "little"))
+        file_handle.write(self.vertices.count.to_bytes(4, "little"))
+        file_handle.write(self.vertices.start.to_bytes(4, "little"))
+        file_handle.write(self.vertices.size.to_bytes(4, "little"))
+        file_handle.write(self.vertices.stride.to_bytes(4, "little"))
+        file_handle.write(self.indices.count.to_bytes(4, "little"))
+        file_handle.write(self.indices.start.to_bytes(4, "little"))
+        file_handle.write(self.indices.size.to_bytes(4, "little"))
+        file_handle.write(self.texcoords.count.to_bytes(4, "little"))
+        file_handle.write(self.texcoords.start.to_bytes(4, "little"))
+
+    def get_obj_size(self):
+        # Amount of members in this object and the size in bytes that is used to store them when
+        # saved to disk in save_to_file()
+        # NOTE: Make sure to keep this updated if new members are added
+        return (8 * 2) + (4 * 9)
+
 def copy_buffer_contents(data, value, bin_buffer, buf):
     buffer_view = data["bufferViews"][data["accessors"][value]["bufferView"]]
     start = buffer_view["byteOffset"]
@@ -131,6 +151,9 @@ def parse_json_data(data, dir_path, file_name):
     if len(ibuffer_data) > 0:
         mesh_buffer += ibuffer_data[0]
 
+    mesh.buffer_size = len(mesh_buffer)
+    mesh.buffer_start = mesh.get_obj_size()
+
     output_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
 
     if not os.path.exists(output_dir):
@@ -139,6 +162,9 @@ def parse_json_data(data, dir_path, file_name):
     mesh_path = os.path.join(output_dir, file_name + ".bin")
 
     mesh_file = open(mesh_path, "wb")
+
+    mesh.save_to_file(mesh_file)
+
     for i in range(0, len(mesh_buffer)):
         mesh_file.write(bytes([mesh_buffer[i]]))
     mesh_file.close()

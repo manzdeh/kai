@@ -12,6 +12,7 @@ namespace kai {
     struct RenderBuffer;
 
     // The actual data that this header describes is stored immediately after the header in the file and in memory
+#pragma pack(push, 1)
     struct MeshHeader {
         Uint64 buffer_size;
         Uint64 buffer_start;
@@ -34,6 +35,7 @@ namespace kai {
             Uint32 start; // Stores the offset to the 1st UV coordinate in the buffer. The subsequent ones can be inferred from the .start member and vertices.stride
         } texcoords;
     };
+#pragma pack(pop)
 
     struct MeshData {
         kai::RenderBuffer vertex_buffer;

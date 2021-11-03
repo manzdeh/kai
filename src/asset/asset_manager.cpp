@@ -19,32 +19,33 @@ void init_asset_manager(void) {
     if(device) {
         kai::FileHandle test_mesh_file = kai::open_file("data/test_mesh.bin");
         if(test_mesh_file) {
-            static unsigned char temp_buffer[4096];
             void *buf = mesh_asset_storage.get_buffer();
 
-            kai::MeshData *data = reinterpret_cast<kai::MeshData *>(buf);
+            kai::MeshData *mesh_data = reinterpret_cast<kai::MeshData *>(buf);
             kai::MeshHeader *header = reinterpret_cast<kai::MeshHeader *>(reinterpret_cast<unsigned char *>(buf) +
                                                                           offsetof(kai::MeshData, header));
 
             kai::read_file(test_mesh_file, header);
 
+            unsigned char *data_start = reinterpret_cast<unsigned char *>(header) + header->buffer_start;
+
             {
                 kai::RenderBufferInfo buffer_info;
-                buffer_info.data = temp_buffer + header->vertices.start;
+                buffer_info.data = data_start + header->vertices.start;
                 buffer_info.byte_size = header->vertices.size;
                 buffer_info.stride = header->vertices.stride;
                 buffer_info.type = kai::RenderBufferType::vertex;
 
-                device->create_buffer(buffer_info, data->vertex_buffer);
+                device->create_buffer(buffer_info, mesh_data->vertex_buffer);
             }
 
             {
                 kai::RenderBufferInfo buffer_info;
-                buffer_info.data = header + header->indices.start;
+                buffer_info.data = data_start + header->indices.start;
                 buffer_info.byte_size = header->indices.size;
                 buffer_info.type = kai::RenderBufferType::index;
 
-                device->create_buffer(buffer_info, data->index_buffer);
+                device->create_buffer(buffer_info, mesh_data->index_buffer);
             }
 
             kai::close_file(test_mesh_file);
