@@ -94,11 +94,11 @@ namespace kai {
 
     struct ArenaAllocator {
         KAI_API ArenaAllocator(void) = default;
-        KAI_API ArenaAllocator(Uint32 bytes);
+        KAI_API ArenaAllocator(Uint64 bytes);
 
         KAI_API void destroy(void);
 
-        KAI_API Uint32 get_size(void);
+        KAI_API Uint64 get_size(void);
         KAI_API void * get_buffer(void);
         KAI_API void clear(void);
 

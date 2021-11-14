@@ -52,7 +52,7 @@ void MemoryManager::init(size_t size) {
         Uint64 block_bytes = block_count / 8;
         size += block_bytes;
 
-        kai::align_to_pow2(size, platform_get_page_size());
+        kai::align_to_pow2(size, kai::get_page_size());
 
         memory_manager.buffer = platform_alloc_mem_arena(size, address);
         memory_manager.total_bytes = size;
@@ -274,7 +274,7 @@ void kai::PoolAllocator::clear(void) {
 }
 
 // -------------------------------------------------- Arena Allocator -------------------------------------------------- //
-kai::ArenaAllocator::ArenaAllocator(Uint32 bytes) {
+kai::ArenaAllocator::ArenaAllocator(Uint64 bytes) {
     if(!MemoryManager::reserve_blocks(handle, bytes)) {
         // TODO: Error logging
     }
@@ -284,8 +284,8 @@ void kai::ArenaAllocator::destroy(void) {
     destroy_allocator(this, handle);
 }
 
-Uint32 kai::ArenaAllocator::get_size(void) {
-    return static_cast<Uint32>(handle.get_size());
+Uint64 kai::ArenaAllocator::get_size(void) {
+    return handle.get_size();
 }
 
 void * kai::ArenaAllocator::get_buffer(void) {

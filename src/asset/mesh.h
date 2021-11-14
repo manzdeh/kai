@@ -9,8 +9,6 @@
 #include "../core/includes/types.h"
 
 namespace kai {
-    struct RenderBuffer;
-
     // The actual data that this header describes is stored immediately after the header in the file and in memory
 #pragma pack(push, 1)
     struct MeshHeader {
@@ -36,24 +34,6 @@ namespace kai {
         } texcoords;
     };
 #pragma pack(pop)
-
-    struct MeshData {
-        kai::RenderBuffer vertex_buffer;
-        kai::RenderBuffer index_buffer;
-
-        MeshHeader header;
-    };
-
-    struct MeshView {
-        KAI_API MeshView(Uint32 id) : id(id) {
-        }
-
-        KAI_API const kai::RenderBuffer * get_vertex_buffer(void) const;
-        KAI_API const kai::RenderBuffer * get_index_buffer(void) const;
-
-    private:
-        Uint32 id = 0; // TODO: Unused for now
-    };
 }
 
 #endif /* KAI_MESH_H */

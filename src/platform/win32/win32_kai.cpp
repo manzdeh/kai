@@ -35,6 +35,7 @@
 static struct {
     kai::Window window;
     HMODULE game_dll;
+    size_t page_size;
     Bool32 rendering_backend_initialized;
 } win32_state = {};
 
@@ -94,6 +95,10 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l
 }
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
+    SYSTEM_INFO sys;
+    GetSystemInfo(&sys);
+    win32_state.page_size = static_cast<size_t>(sys.dwPageSize);
+
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(WNDCLASSEXW);
     window_class.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
@@ -201,13 +206,6 @@ void platform_free_mem_arena(void *arena) {
     }
 }
 
-size_t platform_get_page_size(void) {
-    SYSTEM_INFO sys;
-    GetSystemInfo(&sys);
-
-    return (size_t)sys.dwPageSize;
-}
-
 bool platform_setup_game_callbacks(kai::GameCallbacks &callbacks) {
     if(win32_state.game_dll) {
         FreeLibrary(win32_state.game_dll);
@@ -247,4 +245,56 @@ void platform_renderer_init_backend(kai::RenderingBackend) {
 
 void platform_renderer_destroy_backend(void) {
     destroy_dx11();
+}
+
+void * kai::virtual_alloc(void *starting_address, size_t bytes, kai::PageAllocFlags page_flags, kai::PageProtection page_protection) {
+    DWORD allocation_flags = [page_flags]() {
+        DWORD flags = 0;
+        if(page_flags & kai::ALLOC_RESERVE) {
+            flags |= MEM_RESERVE;
+        }
+
+        if(page_flags & kai::ALLOC_COMMIT) {
+            flags |= MEM_COMMIT;
+        }
+
+        return flags;
+    }();
+
+    DWORD protection = [page_protection]() {
+        switch(page_protection) {
+            case kai::PageProtection::execute: return PAGE_EXECUTE;
+            case kai::PageProtection::execute_read: return PAGE_EXECUTE_READ;
+            case kai::PageProtection::execute_read_write: return PAGE_EXECUTE_READWRITE;
+            case kai::PageProtection::read: return PAGE_READONLY;
+            case kai::PageProtection::read_write: return PAGE_READWRITE;
+            case kai::PageProtection::no_access: return PAGE_NOACCESS;
+            case kai::PageProtection::guard: return PAGE_GUARD;
+            default: return 0;
+        }
+    }();
+
+    return VirtualAlloc(starting_address, bytes, allocation_flags, protection);
+}
+
+void * kai::reserve_pages(void *starting_address, size_t page_count) {
+    return kai::virtual_alloc(starting_address, kai::get_page_size() * page_count,
+                              kai::ALLOC_RESERVE, kai::PageProtection::no_access);
+}
+
+void * kai::commit_pages(void *reserved_pages, size_t page_count) {
+    return kai::virtual_alloc(reserved_pages, kai::get_page_size() * page_count,
+                              kai::ALLOC_COMMIT, kai::PageProtection::read_write);
+}
+
+void kai::decommit_pages(void *pages, size_t page_count) {
+    VirtualFree(pages, kai::get_page_size() * page_count, MEM_DECOMMIT);
+}
+
+void kai::virtual_free(void *pages) {
+    VirtualFree(pages, 0, MEM_RELEASE);
+}
+
+size_t kai::get_page_size(void) {
+    return win32_state.page_size;
 }

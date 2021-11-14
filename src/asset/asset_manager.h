@@ -6,12 +6,14 @@
 #ifndef KAI_ASSET_MANAGER_H
 #define KAI_ASSET_MANAGER_H
 
-namespace kai {
-    struct MeshView;
-}
+#include "../core/includes/types.h"
+
+using AssetId = Uint64;
+#define KAI_ASSET_ID constexpr AssetId
 
 void init_asset_manager(void);
-kai::MeshView asset_manager_get_mesh(void); // TODO: Temporary function
 void destroy_asset_manager(void);
+
+void * load_asset(AssetId id);
 
 #endif /* KAI_ASSET_MANAGER_H */

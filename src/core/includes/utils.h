@@ -55,21 +55,28 @@ namespace kai {
         return mebibytes(value) * 1024ull;
     }
 
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value>>
     KAI_FORCEINLINE bool is_pow2(T value) {
-        static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
-                      "Value can only be an unsigned integer");
         return (value > 0) && (((value - 1) & value) == 0);
     }
 
     // NOTE: 'alignment' must be a power of two
-    template<typename T>
+    template<typename T, typename = std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value>>
     KAI_FORCEINLINE void align_to_pow2(T &value, T alignment) {
-        static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
-                      "Value can only be an unsigned integer");
         KAI_ASSERT(is_pow2(alignment));
         alignment--;
         value = (value + alignment) & ~alignment;
+    }
+
+    constexpr Uint64 fnv1a64_str_hash(const char *str) {
+        Uint64 hash = 0xcbf29ce484222325;
+
+        while(*str) {
+            hash ^= *str++;
+            hash *= 0x100000001b3;
+        }
+
+        return hash;
     }
 }
 
