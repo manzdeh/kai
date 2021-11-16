@@ -12,15 +12,79 @@
 #include "../core/includes/system.h"
 
 struct AssetManager {
+    struct HashTable {
+        AssetId key;
+        void *value;
+    };
+
     AssetManager() = default;
-    AssetManager(size_t bytes) : page_count(bytes / kai::get_page_size()) {
+    AssetManager(size_t bytes) {
         KAI_ASSERT(kai::is_pow2(bytes));
+
+        size_t page_size = kai::get_page_size();
+
+        page_count = bytes / page_size; // Every asset will occupy at least 1 unique page, so small assets should be packed together for optimal use
         pages = kai::reserve_pages(nullptr, page_count);
+
+        // The hash table is stored at the start of the address space that's reserved for assets
+        table_entries = page_count * sizeof(HashTable);
+        size_t table_page_count = (table_entries / page_size) + 1;
+        table = static_cast<HashTable *>(kai::commit_pages(pages, table_page_count));
+        pages_used += table_page_count;
+
+        next_reserved_page = static_cast<unsigned char *>(pages) + (table_page_count * page_size);
+
+        // TODO: Need to keep track of a free-list of pages as well
     }
 
+    void * find(AssetId id) const;
+    void * insert(AssetId id, void *data);
+
+    void linear_probe(size_t &index) const {
+        index = (index + 1) % table_entries;
+    }
+
+    HashTable *table = nullptr;
+    size_t table_entries = 0;
     void *pages = nullptr;
+    void *next_reserved_page = nullptr;
     size_t page_count = 0;
+    size_t pages_used = 0;
 };
+
+void * AssetManager::find(AssetId id) const {
+    void *value = nullptr;
+    size_t index = id % table_entries;
+
+    do {
+        if(table[index].key == id) {
+            value = table[index].value;
+            break;
+        }
+
+        linear_probe(index);
+    } while(table[index].key != 0);
+
+    return value;
+}
+
+void * AssetManager::insert(AssetId id, void *data) {
+    size_t index = id % table_entries;
+
+    do {
+        if(table[index].key == id) {
+            return table[index].value;
+        } else if(table[index].key == 0) {
+            table[index].key = id;
+            table[index].value = data;
+            return table[index].value;
+        }
+
+        linear_probe(index);
+    } while(table[index].key != 0);
+
+    return nullptr;
+}
 
 static AssetManager asset_manager;
 
@@ -108,4 +172,8 @@ void destroy_asset_manager(void) {
 void * load_asset(AssetId /*id*/) {
     // STUB
     return nullptr;
+}
+
+void unload_asset(AssetId /*id*/) {
+    // STUB
 }

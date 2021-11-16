@@ -259,7 +259,7 @@ void kai::PoolAllocator::clear(void) {
     memset(MemoryManager::get_ptr(handle), 0, handle.get_size());
 
     // Set all the nodes in the free-list
-    head = reinterpret_cast<PoolNode *>(MemoryManager::get_ptr(handle));
+    head = static_cast<PoolNode *>(MemoryManager::get_ptr(handle));
     PoolNode *node = head;
     uintptr_t next = reinterpret_cast<uintptr_t>(head);
     for(Uint32 i = 0; i < (element_count - 1); i++) {

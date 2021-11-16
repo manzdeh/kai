@@ -15,5 +15,6 @@ void init_asset_manager(void);
 void destroy_asset_manager(void);
 
 void * load_asset(AssetId id);
+void unload_asset(AssetId id);
 
 #endif /* KAI_ASSET_MANAGER_H */
