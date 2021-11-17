@@ -27,8 +27,8 @@ struct AssetManager {
         pages = kai::reserve_pages(nullptr, page_count);
 
         // The hash table is stored at the start of the address space that's reserved for assets
-        table_entries = page_count * sizeof(HashTable);
-        size_t table_page_count = (table_entries / page_size) + 1;
+        table_entries = page_count;
+        size_t table_page_count = ((table_entries * sizeof(HashTable)) / page_size) + 1;
         table = static_cast<HashTable *>(kai::commit_pages(pages, table_page_count));
         pages_used += table_page_count;
 
@@ -56,32 +56,34 @@ void * AssetManager::find(AssetId id) const {
     void *value = nullptr;
     size_t index = id % table_entries;
 
-    do {
+    while(table[index].key != 0) {
         if(table[index].key == id) {
             value = table[index].value;
             break;
         }
 
         linear_probe(index);
-    } while(table[index].key != 0);
+    }
 
     return value;
 }
 
 void * AssetManager::insert(AssetId id, void *data) {
     size_t index = id % table_entries;
+    size_t count = 0;
 
     do {
-        if(table[index].key == id) {
-            return table[index].value;
-        } else if(table[index].key == 0) {
+        if(table[index].key == 0) {
             table[index].key = id;
             table[index].value = data;
+            return table[index].value;
+        } else if(table[index].key == id) {
             return table[index].value;
         }
 
         linear_probe(index);
-    } while(table[index].key != 0);
+        count++;
+    } while(count < table_entries);
 
     return nullptr;
 }

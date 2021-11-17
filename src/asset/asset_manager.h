@@ -9,7 +9,7 @@
 #include "../core/includes/types.h"
 
 using AssetId = Uint64;
-#define KAI_ASSET_ID constexpr AssetId
+#define GET_KAI_ASSET_ID(name, str) constexpr AssetId name = kai::fnv1a64_str_hash(str)
 
 void init_asset_manager(void);
 void destroy_asset_manager(void);
