@@ -65,7 +65,7 @@ struct AssetManager {
 
     HashTableEntry * find(AssetId id, size_t *out_index = nullptr) const;
     HashTableEntry * insert(AssetId id, void *data);
-    HashTableEntry * insert_at(size_t index, AssetId id, void *data);
+    HashTableEntry * insert_at(size_t index, AssetId id, void *data = nullptr);
     void * commit_pages(size_t bytes);
 
     void linear_probe(size_t &index) const {
@@ -125,7 +125,7 @@ AssetManager::HashTableEntry * AssetManager::insert(AssetId id, void *data) {
 AssetManager::HashTableEntry * AssetManager::insert_at(size_t index, AssetId id, void *data) {
     if(index < table_entries && table[index].key == 0) {
         table[index].key = id;
-        table[index].refcount = 0;
+        table[index].refcount = 1;
         table[index].value = data;
         return &table[index];
     }
@@ -250,12 +250,14 @@ void * load_asset(AssetId id) {
     kai::FileHandle asset_file = kai::open_file(path);
     void *asset_data = nullptr;
 
-    AssetManager::HashTableEntry *entry = asset_manager.insert_at(table_index, id, nullptr);
+    AssetManager::HashTableEntry *entry = asset_manager.insert_at(table_index, id);
     if(entry) {
         asset_data = asset_manager.commit_pages(kai::get_file_size(asset_file));
         KAI_ASSERT(asset_data);
 
         kai::read_file(asset_file, asset_data);
+
+        entry->value = asset_data;
     }
 
     kai::close_file(asset_file);
