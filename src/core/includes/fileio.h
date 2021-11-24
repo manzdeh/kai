@@ -26,6 +26,7 @@ namespace kai {
     KAI_API size_t get_file_size(FileHandle file);
 
     KAI_API bool read_file(FileHandle file, void *buffer, size_t byte_count = 0);
+    KAI_API void rewind_file(FileHandle file);
 }
 
 #endif /* KAI_FILEIO_H */

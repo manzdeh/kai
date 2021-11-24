@@ -3,16 +3,17 @@
  * See LICENSE for details
  **************************************************/
 
-#ifndef KAI_ASSET_TABLE
-#define KAI_ASSET_TABLE
+#ifndef KAI_ASSET_TYPE
+#define KAI_ASSET_TYPE
 
 #include "../core/includes/types.h"
-#include "../core/includes/utils.h"
 
-struct AssetTableHeader {
-    size_t count;
-    Uint64 mod;
-    char KAI_FLEXIBLE_ARRAY(buffer);
-};
+namespace kai {
+    enum class AssetType : Uint32 {
+        unknown = 0,
+        texture,
+        mesh
+    };
+}
 
-#endif /* KAI_ASSET_TABLE */
+#endif /* KAI_ASSET_TYPE */

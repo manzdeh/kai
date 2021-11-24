@@ -20,6 +20,7 @@ class Texcoord:
         self.count = 0
         self.start = 0
 
+
 # NOTE: The order here needs to match the definition of the MeshHeader type defined in the engine
 class Mesh:
     def __init__(self):
@@ -32,6 +33,8 @@ class Mesh:
 
     def save_to_file(self, file_handle):
         # NOTE: If new members are written out, also make sure to update get_obj_size()
+        mesh_asset_type_id = 2 # NOTE: This value is derived from the AssetType enum in "src/asset_asset_type.h"
+        file_handle.write(mesh_asset_type_id.to_bytes(4, "little"))
         file_handle.write(self.buffer_size.to_bytes(8, "little"))
         file_handle.write(self.buffer_start.to_bytes(8, "little"))
         file_handle.write(self.vertices.count.to_bytes(4, "little"))
@@ -48,7 +51,7 @@ class Mesh:
         # Amount of members in this object and the size in bytes that is used to store them when
         # saved to disk in save_to_file()
         # NOTE: Make sure to keep this updated if new members are added
-        return (8 * 2) + (4 * 9)
+        return (8 * 2) + (4 * 10)
 
 def copy_buffer_contents(data, value, bin_buffer, buf):
     buffer_view = data["bufferViews"][data["accessors"][value]["bufferView"]]

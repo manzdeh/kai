@@ -67,3 +67,9 @@ bool kai::read_file(kai::FileHandle file, void *buffer, size_t byte_count) {
 
     return false;
 }
+
+void kai::rewind_file(kai::FileHandle file) {
+    if(file) {
+        SetFilePointer(static_cast<HANDLE>(file), 0, nullptr, FILE_BEGIN);
+    }
+}

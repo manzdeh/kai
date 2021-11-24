@@ -14,6 +14,7 @@ void destroy_renderer(void);
 
 enum class CommandEncoding : Uint32 {
     draw,
+    draw_indexed,
     bind_buffer,
     clear_color,
     clear_depth,
@@ -32,6 +33,13 @@ union CommandEncodingData {
         Uint32 count;
         Uint32 start;
     } draw;
+
+    struct DrawIndexed {
+        COMMAND_DEFAULT_MEMBERS;
+        Uint32 count;
+        Uint32 start;
+        Int32 base;
+    } draw_indexed;
 
     struct BindBuffer {
         COMMAND_DEFAULT_MEMBERS;

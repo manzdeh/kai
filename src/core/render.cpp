@@ -70,6 +70,17 @@ void kai::CommandBuffer::draw(Uint32 vertex_count, Uint32 starting_index) {
     PUSH_TO_COMMAND_BUFFER(command);
 }
 
+void kai::CommandBuffer::draw_indexed(Uint32 index_count, Uint32 starting_index, Int32 base_offset) {
+    CommandEncodingData::DrawIndexed command = {
+        CommandEncoding::draw_indexed,
+        index_count,
+        starting_index,
+        base_offset
+    };
+
+    PUSH_TO_COMMAND_BUFFER(command);
+}
+
 void kai::CommandBuffer::bind_buffer(kai::RenderBuffer &buffer, kai::RenderBufferType type, kai::ShaderType shader_type) {
     CommandEncodingData::BindBuffer command = {
         CommandEncoding::bind_buffer,

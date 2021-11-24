@@ -205,6 +205,9 @@ void DX11Renderer::execute(const kai::CommandBuffer &command_buffer) const {
             case CommandEncoding::draw:
                 offset += sizeof(CommandEncodingData::Draw);
                 break;
+            case CommandEncoding::draw_indexed:
+                offset += sizeof(CommandEncodingData::DrawIndexed);
+                break;
             case CommandEncoding::bind_buffer:
                 offset += sizeof(CommandEncodingData::BindBuffer);
                 break;
@@ -236,6 +239,11 @@ void DX11Renderer::execute(const kai::CommandBuffer &command_buffer) const {
             case CommandEncoding::draw: {
                 const auto c = static_cast<const CommandEncodingData::Draw *>(address);
                 d->context->Draw(c->count, c->start);
+                break;
+            }
+            case CommandEncoding::draw_indexed: {
+                const auto c = static_cast<const CommandEncodingData::DrawIndexed *>(address);
+                d->context->DrawIndexed(c->count, c->start, c->base);
                 break;
             }
             case CommandEncoding::bind_buffer: {

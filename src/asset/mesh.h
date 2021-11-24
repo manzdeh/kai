@@ -6,12 +6,16 @@
 #ifndef KAI_MESH_H
 #define KAI_MESH_H
 
+#include "asset_type.h"
+
 #include "../core/includes/types.h"
 
 namespace kai {
     // The actual data that this header describes is stored immediately after the header in the file and in memory
 #pragma pack(push, 1)
     struct MeshHeader {
+        AssetType asset_type;
+
         Uint64 buffer_size;
         Uint64 buffer_start;
 

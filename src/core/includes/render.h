@@ -138,6 +138,7 @@ namespace kai {
         KAI_API void end(void);
 
         KAI_API void draw(Uint32 vertex_count, Uint32 starting_index = 0);
+        KAI_API void draw_indexed(Uint32 index_count, Uint32 starting_index = 0, Int32 base_offset = 0);
 
         KAI_API void bind_buffer(RenderBuffer &buffer, RenderBufferType type,
                                  ShaderType shader_type = ShaderType::vertex);
