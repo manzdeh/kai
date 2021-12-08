@@ -80,6 +80,9 @@ struct AssetManager {
     void *next_reserved_page = nullptr;
     size_t page_count = 0;
     size_t pages_used = 0;
+
+private:
+    HashTableEntry * init_data(size_t index, AssetId id, void *data);
 };
 
 AssetManager::HashTableEntry * AssetManager::find(AssetId id, size_t *out_index) const {
@@ -108,10 +111,7 @@ AssetManager::HashTableEntry * AssetManager::insert(AssetId id, void *data) {
 
     do {
         if(table[index].key == 0) {
-            table[index].key = id;
-            table[index].refcount = 0;
-            table[index].value = data;
-            return &table[index];
+            return init_data(index, id, data);
         } else if(table[index].key == id) {
             return &table[index];
         }
@@ -125,10 +125,7 @@ AssetManager::HashTableEntry * AssetManager::insert(AssetId id, void *data) {
 
 AssetManager::HashTableEntry * AssetManager::insert_at(size_t index, AssetId id, void *data) {
     if(index < table_entries && table[index].key == 0) {
-        table[index].key = id;
-        table[index].refcount = 1;
-        table[index].value = data;
-        return &table[index];
+        return init_data(index, id, data);
     }
 
     return nullptr;
@@ -146,6 +143,15 @@ void * AssetManager::commit_pages(size_t bytes) {
     }
 
     return committed_pages;
+}
+
+AssetManager::HashTableEntry * AssetManager::init_data(size_t index, AssetId id, void *data) {
+    KAI_ASSERT(table[index].key == 0);
+
+    table[index].key = id;
+    table[index].refcount = 1;
+    table[index].value = data;
+    return &table[index];
 }
 
 static AssetManager asset_manager;

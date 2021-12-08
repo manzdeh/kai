@@ -33,7 +33,7 @@ class Mesh:
 
     def save_to_file(self, file_handle):
         # NOTE: If new members are written out, also make sure to update get_obj_size()
-        mesh_asset_type_id = 2 # NOTE: This value is derived from the AssetType enum in "src/asset_asset_type.h"
+        mesh_asset_type_id = 2 # NOTE: This value is derived from the AssetType enum in "src/asset/asset_type.h"
         file_handle.write(mesh_asset_type_id.to_bytes(4, "little"))
         file_handle.write(self.buffer_size.to_bytes(8, "little"))
         file_handle.write(self.buffer_start.to_bytes(8, "little"))
