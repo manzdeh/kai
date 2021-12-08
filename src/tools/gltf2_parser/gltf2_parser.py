@@ -89,9 +89,11 @@ def add_attribute_data(data, mesh_buffer, attr_str, attr_data, it):
     mesh_buffer += attr_data[start : end]
 
 def convert_images(dir_path, data, output_dir):
-    for i in range(len(data["textures"])):
-        with Image.open(dir_path + "/" + data["images"][i]["uri"]) as im:
-            im.save(os.path.join(output_dir, data["images"][i]["name"] + ".tga"))
+    if "textures" in data and "images" in data:
+        for i in range(len(data["textures"])):
+            source_index = data["textures"][i]["source"]
+            with Image.open(dir_path + "/" + data["images"][source_index]["uri"]) as im:
+                im.save(os.path.join(output_dir, data["images"][i]["name"] + ".tga"))
 
 def parse_json_data(data, dir_path, file_name):
     if data["asset"]["version"] != "2.0":
