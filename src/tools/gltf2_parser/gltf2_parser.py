@@ -2,6 +2,8 @@ import sys
 import os.path
 import json
 
+from PIL import Image
+
 class VertexData:
     def __init__(self):
         self.count = 0
@@ -86,6 +88,11 @@ def add_attribute_data(data, mesh_buffer, attr_str, attr_data, it):
     end += start
     mesh_buffer += attr_data[start : end]
 
+def convert_images(dir_path, data, output_dir):
+    for i in range(len(data["textures"])):
+        with Image.open(dir_path + "/" + data["images"][i]["uri"]) as im:
+            im.save(os.path.join(output_dir, data["images"][i]["name"] + ".tga"))
+
 def parse_json_data(data, dir_path, file_name):
     if data["asset"]["version"] != "2.0":
         print("ERROR: Only glTF 2.0 files can be parsed!")
@@ -119,7 +126,6 @@ def parse_json_data(data, dir_path, file_name):
             if not set_texcoord_start:
                 mesh.texcoords.start = mesh.vertices.stride
                 set_texcoord_start = True
-
 
         accessor = data["accessors"][attributes[key]]
 
@@ -161,6 +167,8 @@ def parse_json_data(data, dir_path, file_name):
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    convert_images(dir_path, data, output_dir)
 
     mesh_path = os.path.join(output_dir, file_name + ".bin")
 
