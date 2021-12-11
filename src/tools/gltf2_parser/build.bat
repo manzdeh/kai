@@ -1,0 +1,15 @@
+@echo off
+
+IF NOT EXIST bin mkdir bin
+
+SET DLL_NAME=kai_bindings.dll
+SET COMPILER_FLAGS=/nologo /std:c++17 /Od /MTd /Zi /Gm- /EHa- /EHsc /FC /W4 /wd4200 /wd4201
+SET DEFINES=/DKAI_PLATFORM_WIN32 /DKAI_DEBUG /DDEBUG /D_DEBUG /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS
+SET LINKER_FLAGS=/DLL /INCREMENTAL:NO /OUT:%DLL_NAME%
+SET LIBRARIES=kernel32.lib user32.lib
+
+pushd bin
+cl %DEFINES% %COMPILER_FLAGS% ..\kai_bindings.cpp %LIBRARIES% /link %LINKER_FLAGS%
+copy /b /y %DLL_NAME% ..\
+popd
+

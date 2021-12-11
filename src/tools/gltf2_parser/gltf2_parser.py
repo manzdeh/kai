@@ -1,8 +1,12 @@
 import sys
 import os.path
 import json
+import ctypes
 
 from PIL import Image
+
+if sys.platform.startswith("win32"):
+    kai_bindings = ctypes.WinDLL(os.path.join(os.path.dirname(os.path.realpath(__file__)), "kai_bindings.dll"))
 
 class VertexData:
     def __init__(self):
@@ -33,27 +37,34 @@ class Mesh:
         self.indices = IndexData()
         self.texcoords = Texcoord()
 
+        self.texture_id = 0 # KAI_NULL_ASSET_ID
+
     def save_to_file(self, file_handle):
         # NOTE: If new members are written out, also make sure to update get_obj_size()
         mesh_asset_type_id = 2 # NOTE: This value is derived from the AssetType enum in "src/asset/asset_type.h"
         file_handle.write(mesh_asset_type_id.to_bytes(4, "little"))
         file_handle.write(self.buffer_size.to_bytes(8, "little"))
         file_handle.write(self.buffer_start.to_bytes(8, "little"))
+
         file_handle.write(self.vertices.count.to_bytes(4, "little"))
         file_handle.write(self.vertices.start.to_bytes(4, "little"))
         file_handle.write(self.vertices.size.to_bytes(4, "little"))
         file_handle.write(self.vertices.stride.to_bytes(4, "little"))
+
         file_handle.write(self.indices.count.to_bytes(4, "little"))
         file_handle.write(self.indices.start.to_bytes(4, "little"))
         file_handle.write(self.indices.size.to_bytes(4, "little"))
+
         file_handle.write(self.texcoords.count.to_bytes(4, "little"))
         file_handle.write(self.texcoords.start.to_bytes(4, "little"))
+
+        file_handle.write(self.texture_id.to_bytes(8, "little"))
 
     def get_obj_size(self):
         # Amount of members in this object and the size in bytes that is used to store them when
         # saved to disk in save_to_file()
         # NOTE: Make sure to keep this updated if new members are added
-        return (8 * 2) + (4 * 10)
+        return (8 * 3) + (4 * 10)
 
 def copy_buffer_contents(data, value, bin_buffer, buf):
     buffer_view = data["bufferViews"][data["accessors"][value]["bufferView"]]
@@ -88,8 +99,13 @@ def add_attribute_data(data, mesh_buffer, attr_str, attr_data, it):
     end += start
     mesh_buffer += attr_data[start : end]
 
-def convert_images(dir_path, data, output_dir):
+def convert_images(dir_path, data, output_dir, mesh):
+    kai_bindings.kai_fnv1a64_str_hash.restype = ctypes.c_uint64
+
     if "textures" in data and "images" in data:
+        texture_name = (data["images"][data["textures"][0]["source"]]["name"] + ".tga").encode("utf-8")
+        mesh.texture_id = kai_bindings.kai_fnv1a64_str_hash(ctypes.c_char_p(texture_name)) # We only assign the first one we find
+
         for i in range(len(data["textures"])):
             source_index = data["textures"][i]["source"]
             with Image.open(dir_path + "/" + data["images"][source_index]["uri"]) as im:
@@ -170,7 +186,7 @@ def parse_json_data(data, dir_path, file_name):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    convert_images(dir_path, data, output_dir)
+    convert_images(dir_path, data, output_dir, mesh)
 
     mesh_path = os.path.join(output_dir, file_name + ".bin")
 

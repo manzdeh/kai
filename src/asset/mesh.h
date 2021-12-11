@@ -36,6 +36,8 @@ namespace kai {
             Uint32 count; // Refers to the number of UV coordinate attributes (TEXCOORD_0, TEXCOORD_1, etc.)
             Uint32 start; // Stores the offset to the 1st UV coordinate in the buffer. The subsequent ones can be inferred from the .start member and vertices.stride
         } texcoords;
+
+        AssetId texture_id; // TODO: For now meshes can only reference one texture. Eventually this probably needs to be a reference to a material of sorts
     };
 #pragma pack(pop)
 }

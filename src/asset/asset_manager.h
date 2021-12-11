@@ -6,10 +6,7 @@
 #ifndef KAI_ASSET_MANAGER_H
 #define KAI_ASSET_MANAGER_H
 
-#include "../core/includes/types.h"
-
-using AssetId = Uint64;
-#define GET_KAI_ASSET_ID(name, str) constexpr AssetId name = kai::fnv1a64_str_hash(str)
+#include "asset_type.h"
 
 void init_asset_manager(void);
 void destroy_asset_manager(void);
